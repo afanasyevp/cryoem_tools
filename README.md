@@ -1,5 +1,7 @@
 # Tools for cryo-EM data processing
 
+### coarsen.py
+Allows binning all the movie-aligned micrographs in a given folder (including subfolders). Useful for manual data screening.
 
 ### convert_to_tif.sh  
 Batch coverter of the mrc movies to tif (LZW compression by IMOD). For counting data only!
