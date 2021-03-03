@@ -1,5 +1,8 @@
 # Tools for cryo-EM data processing
 
+### archive.sh
+Archives a folder and splits it into a set of files of given size. Saves the full content of the folder into a new file using the tool "tree".
+
 ### coarsen.py
 Allows binning all the movie-aligned micrographs in a given folder (including subfolders). Useful for manual data screening.
 
