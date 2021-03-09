@@ -11,23 +11,20 @@ version: 210309
 https://github.com/afanasyevp/cryoem_tools
 ================================================================================================
 '
-
 printf "\n$program_message" 
-
 usage_message='Usage example command:    archive.sh foldername 1.5 
 
 The option above archives and splits the folder into a set of 1.5 TB files
 Use option "0" instead of "1.5" in the example above to get a single file
 Optionally, use the output folder as the third argument: archive.sh foldername 1.5 outputfolder
 '
-
 other_commands='
 ======= Other commands =======
 Join back all files:                   cat filename.tar.gz.part_* > filename.tar.gz.joined
 Extract files from the archive:        tar -xvf filename.tar.gz.joined
 '
 
-if [ $# -lt 1 ] ; then
+if [ $# -lt 2 ] ; then
     printf "\n => ERROR!!! Check your input - two or three input arguments required\n\n"
     printf "$usage_message"
     printf "$other_commands"
@@ -43,29 +40,28 @@ if [ -d "$1" ]; then
         exit 1
 fi
 
-if [ $# -eq 1 ] ; then
-    sizesub_h=$(du -hcs $1 | grep total | cut  -f 1)
+if [[ $2 = 0 ]]; then
+    sizesub_h=10000000
     else
-        if [[ $2 = 0 ]]; then
-            sizesub_h=10000000
-        else
-            case $2 in
-                ''|*[!0-9]|'.'|*.*.*) printf "\n => ERROR!!! The second argument in the input should be a number (float or integer)\n\n"
-                             printf "$usage_message"
-                             printf "$other_commands"
-                             exit 1;;
-                '.'|*) sizesub_h=$2 ;;
-            esac
-        fi
-
-fi
-
-if [ -d "$3" ]; then
-    outfolder=$(realpath -s $3)
-    printf " => Output folder: $outfolder"
+        case $2 in
+            ''|*[!0-9]|'.'|*.*.*) printf "\n => ERROR!!! The second argument in the input should be a number (float or integer)\n\n"
+                printf "$usage_message"
+                printf "$other_commands"
+                exit 1;;
+            '.'|*) sizesub_h=$2 ;;
+        esac
+    fi
+    
+if [ $# -eq 3 ] ; then
+    if [ -d "$3" ]; then
+       outfolder=$(realpath -s $3)
+       printf " => Output folder: $outfolder"
+       else
+           printf "\n\n => WARNING!!! $3 does not exist! The output will be written in the current folder\n"
+           outfolder="."
+    fi
     else
         outfolder="."
-        printf "\n\n => WARNING!!! Output folder: $3 not found. The output will be written in the current folder\n"
 fi
 
 if test -f $folder.tartree; then
@@ -77,7 +73,7 @@ if test -f $folder.tartree; then
 fi
 
 
-printf "\n => Calculating the size of the $1 folder...\n"
+printf "\n => Calculating the size of the $1 folder..."
 sizeori_h=$(du -hcs $1 | grep total | cut  -f 1)
 sizeori=$(du -csb $1 | grep total | cut  -f 1)
 tb_in_bytes=1000000000000
@@ -87,7 +83,7 @@ sizesub=$(echo $sizesub_h*$tb_in_bytes | bc)
 #echo "sizeori: $sizeori"
 sizesub_int=${sizesub%.*}
 #echo "sizesub_int: $sizesub_int"
-tree $1 -h > $folder.tartree
+tree $1 -h > $outfolder/$folder.tartree
 du -hcs $1 >> $folder.tartree
 num_of_outfiles=$(( sizeori / sizesub_int + 1 ))
 #echo "num_of_outfiles: $num_of_outfiles"
