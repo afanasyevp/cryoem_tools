@@ -7,7 +7,7 @@ Also, creates a text file with the structure of the archived folder.
 Requires UNIX tools "tree", "bc".
 
 Pavel Afanasyev
-version: 210309
+version: 210311
 https://github.com/afanasyevp/cryoem_tools
 ================================================================================================
 '
@@ -84,7 +84,7 @@ sizesub=$(echo $sizesub_h*$tb_in_bytes | bc)
 sizesub_int=${sizesub%.*}
 #echo "sizesub_int: $sizesub_int"
 tree $1 -h > $outfolder/$folder.tartree
-du -hcs $1 >> $folder.tartree
+du -hcs $1 >> $outfolder/$folder.tartree
 num_of_outfiles=$(( sizeori / sizesub_int + 1 ))
 #echo "num_of_outfiles: $num_of_outfiles"
 if (( $(echo "$sizesub > $sizeori" |bc -l) )); then
