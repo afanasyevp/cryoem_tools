@@ -7,7 +7,7 @@ Also, creates a text file with the structure of the archived folder.
 Requires UNIX tools "tree", "bc".
 
 Pavel Afanasyev
-version: 210311
+version: 210323
 https://github.com/afanasyevp/cryoem_tools
 ================================================================================================
 '
@@ -94,10 +94,14 @@ if (( $(echo "$sizesub > $sizeori" |bc -l) )); then
     printf "\n => Counting the total size of the compressed data...\n"
     sizefinal=$(du -hcs $outfolder/$folder.tar.gz | grep total$ | cut -f 1)
     printf "\n => Program finished \n"
+    printf "\n => Program finished \n" >> $outfolder/$folder.tartree 
     printf "    The content of the folder $1 is in the $outfolder/$folder.tartree file\n"
     printf "    The folder size before archiving: $sizeori_h\n"
+    printf "    The folder size before archiving: $sizeori_h\n" >> $outfolder/$folder.tartree
     printf "    The data size after archiving: $sizefinal"
+    printf "    The data size after archiving: $sizefinal" >> $outfolder/$folder.tartree
     printf "\n\n => To extract files from the archive run: tar -xvf $folder.tar.gz\n\n"
+    printf "\n\n => To extract files from the archive run: tar -xvf $folder.tar.gz\n\n" >> $outfolder/$folder.tartree
     else
         printf "\n\n  => Archiving $sizeori_h of data in the $1 folder...\n"
         printf "$num_of_outfiles or less output files will be used as an output \n"
@@ -105,17 +109,25 @@ if (( $(echo "$sizesub > $sizeori" |bc -l) )); then
         printf "\n => Counting the total size of the compressed data..."
         sizefinal=$(find $outfolder -type f -name $folder.tar.gz.part_\* -exec du -ch {} + | grep total$ | cut -f 1)
         printf "\n => Program finished \n"
+        printf "\n => Program finished \n" >> $outfolder/$folder.tartree
         printf "    The content of the folder $1 is in the $outfolder/$folder.tartree file\n"
         printf "    The folder size before archiving: $sizeori_h\n"
+        printf "    The folder size before archiving: $sizeori_h\n" >> $outfolder/$folder.tartree
         printf "    The data size (in all tar folders) after archiving: $sizefinal\n"
+        printf "    The data size (in all tar folders) after archiving: $sizefinal\n" >> $outfolder/$folder.tartree
         num_of_outfiles_true=$(ls $outfolder/$folder.tar.gz.part_* | wc -l)
         if [[ $num_of_outfiles_true -eq 1 ]]; then 
             printf "\n => A single file was created after the split. The output will be renamed to $outfolder/$folder.tar.gz\n"
+            printf "\n => A single file was created after the split. The output will be renamed to $outfolder/$folder.tar.gz\n" >> $outfolder/$folder.tartree
             mv $outfolder/$folder.tar.gz.part_aa $outfolder/$folder.tar.gz
             printf "\n======= Other commands =======\n"
+            printf "\n======= Other commands =======\n" >> $outfolder/$folder.tartree
             printf "Extract files from the archive:        tar -xvf $outfolder/$folder.tar.gz\n\n"
+            printf "Extract files from the archive:        tar -xvf $outfolder/$folder.tar.gz\n\n" >> $outfolder/$folder.tartree 
         else
             printf "\n======= Other commands =======\nJoin back all files:                   cat $outfolder/$folder.tar.gz.part_* > $outfolder/$folder.tar.gz.joined\n"
+            printf "\n======= Other commands =======\nJoin back all files:                   cat $outfolder/$folder.tar.gz.part_* > $outfolder/$folder.tar.gz.joined\n" >> $outfolder/$folder.tartree
             printf "Extract files from the archive:        tar -xvf $outfolder/$folder.tar.gz.joined\n\n"
+            printf "Extract files from the archive:        tar -xvf $outfolder/$folder.tar.gz.joined\n\n" >> $outfolder/$folder.tartree
     fi
 fi
