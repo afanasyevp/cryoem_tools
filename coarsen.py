@@ -1,6 +1,6 @@
 #!/Applications/anaconda/bin/python
 
-ver='200604'
+ver='210603'
 
 import subprocess, sys, argparse
 
@@ -56,7 +56,7 @@ https://github.com/afanasyevp/cryoem_tools
     label=args.label
 
     mrcs=get_files(path, label).split()
-    mrcs_processed=get_files(path, "_noDW_c%d.mrc" %coa_factor).split()
+    mrcs_processed=get_files(path, "_c%d.mrc" %coa_factor).split()
     relion_resize(coa_factor, pix_size, mrcs, mrcs_processed)
 if __name__ == '__main__':
     main()
