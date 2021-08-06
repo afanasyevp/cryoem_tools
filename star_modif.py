@@ -1,5 +1,5 @@
 #!/Users/pafana/software/anaconda3/bin/python3
-ver=210802
+ver=210806
 import argparse 
 import re
 import sys
@@ -8,23 +8,23 @@ import time
 from typing import NewType
 
 def input_analyse(filename):
-    #for an input files retuns its type: "star_particles", "star_micrographs", "star_micrographs_coarsened", "txt_micrographs", "unknown"
+    #for an input files retuns its type: "particles_star", "micrographs_star", "micrographs_coarsened_star", "micrographs_txt", "unknown"
     inputType='unknown'
     if filename[-5:] == ".star":
-        if "particles" in filename:
-            inputType="star_particles"
-        elif "micrographs" in filename:
-            MainHeader, OpticsGroupData, OpticsHeader, StarData, StarFileType=star_analyze(filename, 10000)
+        MainHeader, OpticsGroupData, OpticsHeader, StarData, StarFileType=star_analyze(filename, 10000)
+        if StarFileType == "particles": 
+            inputType="particles_star"
+        elif StarFileType == "micrographs":
             if len(MainHeader) == 3: 
                 random_kv=StarData.popitem() #randomly picks one key, value
                 match = re.search(r'(.+)(_c\d+)', random_kv[0]) # checks of k has a coarsening factor in the micrograph name
-                if match:  inputType="star_micrographs_coarsened" #print(match.group(2))
-            else: inputType="star_micrographs"
+                if match: inputType="micrographs_coarsened_star" #print(match.group(2))
+            else: inputType="micrographs_star"
         else:
             print("\n => ERROR! Check your input: unknown star-file type. micrographs.star or particles.star can be used") 
     else:
        print ("\n => WARNING: Unknown file-type of the %s file is used: will be considered as a list of micrographs"%filename)
-       inputType="txt_micrographs"
+       inputType="micrographs_txt"
     return inputType
 
 def star_analyze(star_filename, lim=0):
@@ -137,19 +137,21 @@ def star_analyze(star_filename, lim=0):
     return MainHeader, OpticsGroupData, OpticsHeader, StarData, StarFileType
 
 def extract_from_dict(StarData, list_to_extract):
-    # returns new dictionary with keys matching those in the list
-    return ({k:v for k,v in StarData.items() if Path(k).stem in list_to_extract})
+    # returns new dictionary with keys matching those in the list. Distinguishes particles from micrographs by "@" 
+    if "@" in list_to_extract[0]: return ({k:v for k,v in StarData.items() if k in list_to_extract}) 
+    else: return ({k:v for k,v in StarData.items() if Path(k).stem in list_to_extract})
 def exclude_from_dict(StarData, list_to_exclude):
     # returns new dictionary without keys matching those in the list
     #slower solution:
     #for i in list_of_binned_micrographs: 
     #    for k,v in list(StarData.items()):
     #            if i in k: del(StarData[k])
-    return ({k:v for k,v in StarData.items() if Path(k).stem not in list_to_exclude})
+    if "@" in list_to_exclude[0]: return ({k:v for k,v in StarData.items() if k not in list_to_exclude})
+    else: return ({k:v for k,v in StarData.items() if Path(k).stem not in list_to_exclude})
 
 def export_from_coarsened_file(star_filename):
     #Operates on the output from Select jobs: extracts only basenames of the micrographs and returns a list of those.
-    print("\n => Analysing %s file"% star_filename)
+    #print("\n => Analysing %s file"% star_filename)
     list_of_micrographs=[]
     MainHeader, OpticsGroupData, OpticsHeader, StarData, StarFileType = star_analyze(star_filename)
     for i in StarData.keys():
@@ -210,19 +212,21 @@ loop_
 
 def main():
     output_text='''
-========================================= star_modifier.py ==========================================
-star_modifier.py modifies the micrographs_ctf.star file or particles.star file by 
+========================================= star_modif.py ==========================================
+star_modif.py modifies the micrographs_ctf.star file or particles.star file by 
 exctracting/excluding micrographs (for now micrographs only) by performing search on the stem of
 the micrograph name
 
 Note:
- - The program works with files from Relion 3.1 version
+ - The input filenames must start with "particles" or "micrographs"
+ - For the "particle.star" files the script works only with non-symmetry expanded stack 
+ - The script works with files from Relion 3.1 version
  - Modify the first line of the script to change the location of the python execultable to 
 the installed Anaconda's python 
 
 [version %s]
 
-Example: star_mod.py --i particles.star --o particles_new.star --exclude micrographs.star
+Example: star_modif.py --i particles.star --o particles_new.star --exclude micrographs.star
 
 Written and tested in python3.8.5
 Pavel Afanasyev
@@ -244,7 +248,6 @@ https://github.com/afanasyevp/cryoem_tools/
     print(output_text)
     
     parser.print_help()
-    
     if args.extract and args.exclude:
         print("\n => ERROR!!! Check your input: only one option (--extract or --exclude can be used)")
         sys.exit(2)
@@ -253,56 +256,83 @@ https://github.com/afanasyevp/cryoem_tools/
         sys.exit(2)
 
     MainHeader, OpticsGroupData, OpticsHeader, StarData, StarFileType=star_analyze(args.i[0])
+    
+    # check if the input types are the same: micrographs/particles
+    list_of_inputTypes=[]
+    if args.extract:
+        for argExtr in args.extract:
+            inputType=input_analyse(argExtr) 
+            list_of_inputTypes.append(inputType)
+        temp=list_of_inputTypes.pop()
+        for i in list_of_inputTypes:
+            if len(list_of_inputTypes) > 0:
+                if i.split("_")[0] == "micrographs" and temp[:11] == "micrographs": continue
+                elif i.split("_")[0] == "particles" and temp[:9] == "particles": continue
+                else: 
+                    print("\n => ERROR! Different input types detected! The --extract input arguments should be micrographs-only or particles-only")
+                    sys.exit(2)
+    if args.exclude:
+        for argExcl in args.exclude:
+            inputType=input_analyse(argExcl) 
+            list_of_inputTypes.append(inputType)
+        temp=list_of_inputTypes.pop()
+        for i in list_of_inputTypes:
+            if len(list_of_inputTypes) > 0:
+                #print("temp :", temp)
+                if i.split("_")[0] == "micrographs" and temp[:11] == "micrographs": continue
+                elif i.split("_")[0] == "particles" and temp[:9] == "particles": continue
+                else: 
+                    print("\n => ERROR! Different input types detected! The --exclude input arguments should be micrographs-only or particles-only")
+                    sys.exit(2)
+
     if args.extract:
         NewStarData=[]
-        list_of_micrographs=[]
-        list_of_particles=[] 
+        list_to_extract=[]
         for argExtr in args.extract: 
             inputType=input_analyse(argExtr)
-            if inputType == "star_micrographs_coarsened": 
-                list_of_micrographs=list_of_micrographs + export_from_coarsened_file(argExtr)
-            elif inputType == "star_micrographs":
+            if inputType == "micrographs_coarsened_star": 
+                list_to_extract=list_to_extract + export_from_coarsened_file(argExtr)
+            elif inputType == "micrographs_star":
                 MainHeader_extr, OpticsGroupData_extr, OpticsHeader_extr, StarData_extr, StarFileType_extr=star_analyze(argExtr)
-                list_of_micrographs= list_of_micrographs + [Path(k).stem for k, v in StarData_extr.items()]
-                #print(list_of_micrographs)
-            elif inputType == "star_particles":
-                print("\n ERROR! This is function is not implemented yet!")
-                sys.exit(2) 
-            elif inputType == "txt_micrographs":
-                list_of_micrographs= list_of_micrographs + export_from_txt_file(argExtr)
+                list_to_extract= list_to_extract + [Path(k).stem for k, v in StarData_extr.items()]
+                #print(list_to_extract)
+            elif inputType == "particles_star":
+                MainHeader_extr, OpticsGroupData_extr, OpticsHeader_extr, StarData_extr, StarFileType_extr=star_analyze(argExtr)
+                list_to_extract=list_to_extract + [k for k, v in StarData_extr.items()]
+                #print("list_to_extract:", list_to_extract)
+                #print("StarData_extr:", StarData_extr)
+            elif inputType == "micrographs_txt":
+                list_to_extract= list_to_extract + export_from_txt_file(argExtr)
             else:
                 print("\n => ERROR in the analysis of the input! inputType is not detected")
                 sys.exit(2)  
-        #print(list_of_micrographs)
-        NewStarData=extract_from_dict(StarData, list(set(list_of_micrographs)))
-                
+        print("\n => Extracting %d %s" %(len(list_to_extract),inputType.split("_")[0]))
+        NewStarData=extract_from_dict(StarData, list(set(list_to_extract)))       
 
     if args.exclude:
         NewStarData=[]
-        list_of_micrographs=[]
-        list_of_particles=[] 
+        list_to_exclude=[]
         for argExcl in args.exclude: 
             inputType=input_analyse(argExcl)
-            if inputType == "star_micrographs_coarsened": 
-                list_of_micrographs=list_of_micrographs + export_from_coarsened_file(argExcl)
-            elif inputType == "star_micrographs":
+            if inputType == "micrographs_coarsened_star": 
+                list_to_exclude=list_to_exclude + export_from_coarsened_file(argExcl)
+            elif inputType == "micrographs_star":
                 MainHeader_excl, OpticsGroupData_excl, OpticsHeader_excl, StarData_excl, StarFileType_excl=star_analyze(argExcl)
-                list_of_micrographs= list_of_micrographs + [Path(k).stem for k, v in StarData_excl.items()]
-                #print(list_of_micrographs)
-            elif inputType == "star_particles":
-                print("\n ERROR! This is function is not implemented yet!")
-                sys.exit(2) 
-            elif inputType == "txt_micrographs":
-                list_of_micrographs= list_of_micrographs + export_from_txt_file(argExcl)
+                list_to_exclude= list_to_exclude + [Path(k).stem for k, v in StarData_excl.items()]
+                #print(list_to_exclude)
+            elif inputType == "particles_star":
+                MainHeader_excl, OpticsGroupData_excl, OpticsHeader_excl, StarData_excl, StarFileType_excl=star_analyze(argExcl)
+                list_to_exclude=list_to_exclude + [k for k, v in StarData_excl.items()]
+            elif inputType == "micrographs_txt":
+                list_to_exclude= list_to_exclude + export_from_txt_file(argExcl)
             else:
                 print("\n => ERROR in the analysis of the input! inputType is not detected")
                 sys.exit(2)  
-        #print(list_of_micrographs)
-        NewStarData=exclude_from_dict(StarData, list(set(list_of_micrographs)))
+        print("\n => Excluding %d %s" %(len(list_to_exclude),inputType.split("_")[0]))
+        NewStarData=exclude_from_dict(StarData, list(set(list_to_exclude)))
      
-
     write_output(MainHeader, OpticsGroupData, OpticsHeader, NewStarData, StarFileType, args.o) 
 if __name__ == '__main__':
     #start_time= time.time()
     main()
-    #print("--- %s seconds ---" % (time.time() - start_time))
+    #print("--- %s seconds ---" % (time.time() - start_time))(base) 
