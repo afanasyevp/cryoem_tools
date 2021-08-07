@@ -1,11 +1,10 @@
 #!/Users/pafana/software/anaconda3/bin/python3
-ver=210806
+ver=210807
 import argparse 
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePath
 import time
-from typing import NewType
 
 def input_analyse(filename):
     #for an input files retuns its type: "particles_star", "micrographs_star", "micrographs_coarsened_star", "micrographs_txt", "unknown"
@@ -179,7 +178,7 @@ def export_from_txt_file(txt_micrographs_filename):
             list_of_micrographs.append(temp)
     return list_of_micrographs
 
-def write_output(MainHeader, OpticsGroupData, OpticsHeader, StarData, StarFileType, Output):
+def write_out_star(MainHeader, OpticsGroupData, OpticsHeader, StarData, StarFileType, Output):
     "Writes out the modified star file"
     with open(Output, "w") as outputFile:
         outputFile.write('''
@@ -210,6 +209,19 @@ loop_
         outputFile.write("\n")
     print(" => %s created!"%Output )
 
+def write_out_list(StarData, Output):
+    "Writes out the list of micrographs from the input dictionary"
+    with open(Output, "w") as outputFile:
+        for k,v in StarData.items():
+            outputFile.write("%s \n"% Path(k).name)
+            #print(Path(k).name)
+        outputFile.write("\n")
+    print(" => %s created!"%Output) 
+
+def check_outputname(filename):
+    "Returns prefix and suffix"
+    return Path(filename).stem, Path(filename).suffix
+
 def main():
     output_text='''
 ========================================= star_modif.py ==========================================
@@ -218,8 +230,8 @@ exctracting/excluding micrographs (for now micrographs only) by performing searc
 the micrograph name
 
 Note:
- - The input filenames must start with "particles" or "micrographs"
- - For the "particle.star" files the script works only with non-symmetry expanded stack 
+ - The script will not operate properly on symmetry-expanded particles 
+   (only unique particles will be considered)
  - The script works with files from Relion 3.1 version
  - Modify the first line of the script to change the location of the python execultable to 
 the installed Anaconda's python 
@@ -238,12 +250,14 @@ https://github.com/afanasyevp/cryoem_tools/
     add=parser.add_argument
     add('--i', required=True, metavar="file", nargs=1,
         help="Input file: micrographs_ctf.star or particles.star")
-    add('--o', metavar="file", required=True,
+    add('--o', metavar="file", required=True, nargs=1,
         help="Output file: micrographs_new.star or particles_new.star")
     add('--extract', metavar="file", nargs='+', 
         help="File(s) with micrograph names to extract")
     add('--exclude', metavar="file", nargs='+', 
         help="File(s) with micrograph names to exclude")
+    add('--list_of_micro', action="store_true",
+        help="Returns just a list of unique micrographs from the input star file or the resulting one")    
     args = parser.parse_args()
     print(output_text)
     
@@ -252,8 +266,14 @@ https://github.com/afanasyevp/cryoem_tools/
         print("\n => ERROR!!! Check your input: only one option (--extract or --exclude can be used)")
         sys.exit(2)
     if args.extract == None and args.exclude == None:
-        print("\n => ERROR!!! Check your input: Please indicate an option (--extract or --exclude) and the file with locations to extract/exclude")
-        sys.exit(2)
+        if args.list_of_micro:
+            print("\n => Writing out the list of unique micrographs")
+            MainHeader, OpticsGroupData, OpticsHeader, StarData, StarFileType=star_analyze(args.i[0])
+            write_out_list(StarData, args.o[0])
+            sys.exit(2)
+        else:    
+            print("\n => ERROR!!! Check your input: Please indicate an option (--extract or --exclude) and the file with locations to extract/exclude")
+            sys.exit(2)
 
     MainHeader, OpticsGroupData, OpticsHeader, StarData, StarFileType=star_analyze(args.i[0])
     
@@ -331,8 +351,15 @@ https://github.com/afanasyevp/cryoem_tools/
         print("\n => Excluding %d %s" %(len(list_to_exclude),inputType.split("_")[0]))
         NewStarData=exclude_from_dict(StarData, list(set(list_to_exclude)))
      
-    write_output(MainHeader, OpticsGroupData, OpticsHeader, NewStarData, StarFileType, args.o) 
+    write_out_star(MainHeader, OpticsGroupData, OpticsHeader, NewStarData, StarFileType, args.o[0])
+    
+    if args.list_of_micro:
+        #create an additional file with micrograph filenames
+        output_stem, output_suffix = check_outputname(args.o[0])
+        list_of_micro_filename=output_stem+"_micrographs.txt"
+        #print(list_of_micro_filename)
+        write_out_list(NewStarData, list_of_micro_filename)
 if __name__ == '__main__':
     #start_time= time.time()
     main()
-    #print("--- %s seconds ---" % (time.time() - start_time))(base) 
+    #print("--- %s seconds ---" % (time.time() - start_time))
