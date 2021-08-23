@@ -1,7 +1,6 @@
 #!/Applications/anaconda/bin/python
 
-ver='210603'
-
+ver='210823'
 import subprocess, sys, argparse
 
 def get_files(path, pattern):
@@ -18,20 +17,21 @@ def relion_resize(coa_factor, pix_size, mrcs, mrcs_processed):
     count=1   
     for mrc in mrcs:
         if (mrc[:-4] + "_c%d" %coa_factor + ".mrc") not in mrcs_processed:
-            output=mrc[:-4]+ "_c%d" %coa_factor + ".mrc"
-            print("working on: ", output, "   Progress: %.2f %%"%(100*count/(len(mrcs)-len(mrcs_processed))))
-            p=subprocess.Popen('relion_image_handler --i %s --o %s --angpix %f --rescale_angpix %f ' %(mrc, output, pix_size, pix_size*coa_factor), stdout=subprocess.PIPE, shell=True)
-            (output, err) = p.communicate()  
-            p_status = p.wait()
-            count+=1
+            if mrc[-6-len(str(coa_factor)):] != "_c%d.mrc"%coa_factor:
+                #print(mrc, mrc[-6-len(str(coa_factor)):])
+                output=mrc[:-4]+ "_c%d" %coa_factor + ".mrc"
+                print(" => working on: ", output, "   Progress: %.2f %%"%(100*count/(len(mrcs)-len(mrcs_processed))))
+                p=subprocess.Popen('relion_image_handler --i %s --o %s --angpix %f --rescale_angpix %f ' %(mrc, output, pix_size, pix_size*coa_factor), stdout=subprocess.PIPE, shell=True)
+                (output, err) = p.communicate()  
+                p_status = p.wait()
+                count+=1
 
 def main():
     output_text='''
 ==================================== coarsen.py =================================================
-coarsen.py bins motion-corrected non-dose-weighted micrographs in the given folder by 
-a given factor
+coarsen.py bins motion-corrected micrographs in the given folder/path by a given factor
  
-MAKE SURE that relion is sourced
+Make sure that relion is sourced
 
 [version %s]
 Written and tested in python3.7
@@ -44,19 +44,20 @@ https://github.com/afanasyevp/cryoem_tools
     add('--path', default="./", help="Path with your files. Default value: ./ ")
     add('--coa', default="8", help="Coarsening factor. Default value: 8")
     add('--pix', default="1", help="Pixel size. Default value: 1")
-    add('--label', default="_noDW.mrc", help="Suffix in the filename to search for. Default value: _noDW.mrc")
+    add('--label', default=".mrc", help="Suffix in the filename to search for. Default value: .mrc")
     args = parser.parse_args()
     print(output_text)
     parser.print_help()
-    print("Example: coarsen.py --path ./ --coa 2 --pix 0.85 --label DW")
-    print(" ")
+    print("\nExample: coarsen.py --path ./ --coa 8 --pix 0.85 --label .mrc")
+    print("")
     coa_factor=int(args.coa)
     pix_size=float(args.pix)
     path=args.path
     label=args.label
-
     mrcs=get_files(path, label).split()
+    #print(mrcs)
     mrcs_processed=get_files(path, "_c%d.mrc" %coa_factor).split()
     relion_resize(coa_factor, pix_size, mrcs, mrcs_processed)
 if __name__ == '__main__':
     main()
+
