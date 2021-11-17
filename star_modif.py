@@ -1,5 +1,5 @@
 #!/Users/pafana/software/anaconda3/bin/python3
-ver=210807
+ver=211117
 import argparse 
 import re
 import sys
@@ -11,19 +11,26 @@ def input_analyse(filename):
     inputType='unknown'
     if filename[-5:] == ".star":
         MainHeader, OpticsGroupData, OpticsHeader, StarData, StarFileType=star_analyze(filename, 10000)
+        #print("MainHeader:", MainHeader) 
+        #print("OpticsGroupData:", OpticsGroupData)
+        #print("OpticsHeader:", OpticsHeader)
+        #print("StarData", StarData) 
+        #print("StarFileType", StarFileType)
         if StarFileType == "particles": 
             inputType="particles_star"
         elif StarFileType == "micrographs":
+            #print(len(MainHeader))
             if len(MainHeader) == 3: 
                 random_kv=StarData.popitem() #randomly picks one key, value
                 match = re.search(r'(.+)(_c\d+)', random_kv[0]) # checks of k has a coarsening factor in the micrograph name
                 if match: inputType="micrographs_coarsened_star" #print(match.group(2))
-            else: inputType="micrographs_star"
+                else: inputType="micrographs_star"
         else:
             print("\n => ERROR! Check your input: unknown star-file type. micrographs.star or particles.star can be used") 
     else:
        print ("\n => WARNING: Unknown file-type of the %s file is used: will be considered as a list of micrographs"%filename)
        inputType="micrographs_txt"
+    #print(inputType)
     return inputType
 
 def star_analyze(star_filename, lim=0):
@@ -245,7 +252,7 @@ Pavel Afanasyev
 https://github.com/afanasyevp/cryoem_tools/
 ==================================================================================================
 ''' % ver 
-
+    print(output_text)
     parser = argparse.ArgumentParser(description="")
     add=parser.add_argument
     add('--i', required=True, metavar="file", nargs=1,
@@ -259,7 +266,6 @@ https://github.com/afanasyevp/cryoem_tools/
     add('--list_of_micro', action="store_true",
         help="Returns just a list of unique micrographs from the input star file or the resulting one")    
     args = parser.parse_args()
-    print(output_text)
     
     parser.print_help()
     if args.extract and args.exclude:
@@ -324,7 +330,7 @@ https://github.com/afanasyevp/cryoem_tools/
             elif inputType == "micrographs_txt":
                 list_to_extract= list_to_extract + export_from_txt_file(argExtr)
             else:
-                print("\n => ERROR in the analysis of the input! inputType is not detected")
+                print("\n => ERROR in the analysis of the --extract input! inputType is not detected")
                 sys.exit(2)  
         print("\n => Extracting %d %s" %(len(list_to_extract),inputType.split("_")[0]))
         NewStarData=extract_from_dict(StarData, list(set(list_to_extract)))       
@@ -346,7 +352,7 @@ https://github.com/afanasyevp/cryoem_tools/
             elif inputType == "micrographs_txt":
                 list_to_exclude= list_to_exclude + export_from_txt_file(argExcl)
             else:
-                print("\n => ERROR in the analysis of the input! inputType is not detected")
+                print("\n => ERROR in the analysis of the --exclude input! inputType is not detected")
                 sys.exit(2)  
         print("\n => Excluding %d %s" %(len(list_to_exclude),inputType.split("_")[0]))
         NewStarData=exclude_from_dict(StarData, list(set(list_to_exclude)))
