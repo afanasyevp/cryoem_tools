@@ -11,8 +11,8 @@ The script is useful for preparing reports and batch processing of cryo-LM data.
 3. Select Formats
 4. Select your desired file format (e.g. “Zeiss CZI”) and select “Windowless”
 5. Close the Bio-Formats Plugins Configuration window Now the importer window won’t open for this file-type. 
-To restore this, simply untick ‘Windowless”. 
-To have composite images, make sure the following options are selected in the Bio-Formats Import Options: View stack with: Hyperstack; Color mode: Composite; Autoscale selected.
+- To restore this, simply untick ‘Windowless”. 
+- To have composite images, make sure the following options are selected in the Bio-Formats Import Options: View stack with: Hyperstack; Color mode: Composite; Autoscale selected.
   
 ### coarsen.py
 Allows binning all the movie-aligned micrographs in a given folder (including subfolders). Useful for manual data screening.
