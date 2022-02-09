@@ -19,9 +19,13 @@ The script is useful for preparing reports and batch processing of cryo-LM data.
 - To restore this, simply untick ‘Windowless”. 
 - To have composite images, make sure the following options are selected in the Bio-Formats Import Options: View stack with: Hyperstack; Color mode: Composite; Autoscale selected.
   
-### coarsen.py 
-Allows binning all the movie-aligned micrographs in a given folder (including subfolders). Useful for manual data screening (to be used with star_modif.py).
-##### Manual data screening in Relion
+### coarsen.py (as a part of manual data screening in Relion)
+Unfortunately, Relion does not have a convenient tool to quickly screen your micrographs. This scriptllows binning all the movie-aligned micrographs in a given folder (including subfolders). Useful for manual data screening (to be used with star_modif.py).
+##### Why you should not use "Scale" option in the Display pop-up window of Relion:
+Scaling in Relion does not bin micrographs (which preserves low-frequency information, corespomnding to the particle features). Instead, it skips the lines in the images. For example, if you have a raw 4096x4096 image (from Falcon 3 camera) and display it in relion with the scale parameter of 0.25, you will get a 1024x1024 image on your screen, where 75% of the image cololumn-lines and 75% of the image row-lines will be hidden. This results in a very poor contrast of the displayed image. Also, though this data is not used for display, but it is used in the program and therefore, makes the screening slow.
+Solution: You can bin (coarsen) micrographs before screening. This will facilitate and speed up the screening of your data and further processing. Moreover, often you might learn something important about your dataset, which might be a cause of problems in the image processing.
+In the main project-folder, your micrographs should be in the MotionCorr folder (output from the movie-alignments). 
+##### Exclude particles from bad micrographs
 1.	Select bad binned micrographs (output from coarsen.py) in relion (for screening use Sigma=3). Go to Select/jobXXX and copy micrographs.star as micrographs_save.star
 2.	Run “_modif.py -h” without arguments to see the usage instructions.
 3.	Run “star_modif.py --i micrographs.star --o bad.txt   --list_of_micro” to create the original list of bad micrographs (unbinned). Check the output (should be called micrographs_bad.txt). 
