@@ -86,8 +86,9 @@ def checkFolderSize(path="."):
 def main():
     output_text='''
 ==================================== data_collection_alarm.py ===================================
-data_collection_alarm.py monitors changes in the folder size. In case the folder size is constant 
-over certain period of time (30 min by default), it will send you an email. 
+data_collection_alarm.py monitors changes in the number of movie-files in the folder. In case the 
+number of movie-files is constant over certain period of time (20 min by default), 
+it will send you an email. It can also send you an email to confirm the data collection is OK. 
 
 !!! Password and setting up an email account for sending emails:
 Option #1:  
