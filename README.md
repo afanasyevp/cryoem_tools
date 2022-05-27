@@ -47,6 +47,9 @@ Batch LZW compression of .tiff files using ImageMagick. Might require modificati
 ### convert_to_tif.sh  
 Batch coverter of the mrc movies to tif (LZW compression by IMOD)
 
+### data_collection_alarm.py 
+monitors changes in the number of movie-files in the folder. In case the number of movie-files is constant over certain period of time (20 min by default), it will send you an email. It can also send you an email to confirm the data collection is OK. 
+
 ### invert.sh
 Inverts handedness of the 3D-reconstruction using relion_image_handler
 
