@@ -12,7 +12,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
-ver='220527'
+ver='220528'
 
 import smtplib, ssl, os, sys, threading, argparse, time, subprocess
 from datetime import datetime
@@ -145,7 +145,7 @@ https://github.com/afanasyevp/cryoem_tools
     datetimeStart=now()
     number=checkNumOfMov(dataPath, label)
     volume=checkFolderSize(dataPath)
-    with open("data_collection_progress.log", "w") as outputFile:
+    with open("data_collection_progress.log", "a") as outputFile:
         outputFile.write("%s %i %.3f "%(datetimeStart, number, volume))
     print( " => ", datetimeStart, "Current data size in TB: ", "{:.3f}".format(volume), "Number of movies: ", number)
     ### messages
@@ -168,7 +168,7 @@ https://github.com/afanasyevp/cryoem_tools
         newNumber=checkNumOfMov(dataPath, label)
         newVolume=checkFolderSize(dataPath)
         #print( " => ", datetimeStart, "Current data size in TB: ", newVolume, "Number of movies: ", newNumber)    
-        with open("data_collection_progress.log", "w") as outputFile:
+        with open("data_collection_progress.log", "a") as outputFile:
             outputFile.write("%s %i %.3f "%(now(), number, volume))
         if newNumber == number:
             if args.restart == False: statusEmailRestart=' NOT'
