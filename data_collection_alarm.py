@@ -163,7 +163,7 @@ https://github.com/afanasyevp/cryoem_tools
     dataPath=args.path
     dataPathAbs=os.path.abspath(dataPath)
     timeInterval=float(args.time)*60 # in seconds
-    if float(args.time) < 0.1:
+    if float(args.time) < 5:
         print(" => ERROR! Please use --time more than 5 minutes! The program will be terminated")
         sys.exit(2)
     label=args.label
@@ -264,7 +264,7 @@ https://github.com/afanasyevp/cryoem_tools
                     #https://github.com/afanasyevp/cryoem_tools/data_collection_alarm.py
                     #version %s'''%(now(), dataPathAbs, str(args.time), float(newVolume/1000000000000), number, ver) 
                     timeCount+=1
-                    if timeCount % 2 ==0: # to make it less often, increase 7 to 14
+                    if timeCount % 7 ==0: # to make it less often, increase 7 to 14
                         for email in receiverEmails:
                             emailSend(port, senderEmail, email, smtpServer, password, messageOK, subject)
             time.sleep(timeInterval)    
