@@ -1,5 +1,5 @@
 //batch_prepare_images.ijm
-version=220114;
+version=220602;
 print("");
 print("================== batch_prepare_images.ijm ==================");
 print("Fiji macro for batch image preparation for reports.");
@@ -16,7 +16,7 @@ print(" => Starting the script @ " + now() );
 scaleFactor=0.25;
 suffix="_binned";
 output_folder="binned_images"
-extension=newArray("czi","jpg","JPG","jpeg","JPEG","mrc","png","PNG","tif","tiff");
+extension=newArray("czi","jpg","JPG","jpeg","JPEG","mrc","png","PNG","tif","tiff","TIFF","TIF");
 Dialog.create("File format");
 Dialog.addChoice("Specify file format:", extension);
 Dialog.addNumber("Specify scale factor:", scaleFactor);
