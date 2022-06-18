@@ -12,7 +12,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
-ver='220530'
+ver='220617'
 
 import smtplib, ssl, os, sys, argparse, time, subprocess, time
 from datetime import datetime
@@ -142,7 +142,7 @@ https://github.com/afanasyevp/cryoem_tools
     add('--label', default="fractions.tiff", help="Pattern of names of the movie files to search for")
     add('--restart', default=False, action='store_true', help="Keep sending error emails even if the data collection stops")
     add('--okreport', default=False, action='store_true', help="Keep sending reports that the data is collecting every 7*[time interval] - ~2.5 hours for 20 mins interval")
-    add('--delay', default=60, help="Delay in seconds before running the script to make sure some movies are being acquired")
+    add('--delay', default=300, help="Delay in seconds before running the script to make sure some movies are being acquired")
     #parser.add_argument('--no-feature', dest='feature', action='store_false')
     #parser.set_defaults(feature=True)
     args = parser.parse_args()
