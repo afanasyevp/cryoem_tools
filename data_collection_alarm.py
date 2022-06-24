@@ -12,26 +12,38 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
-ver='220617'
+ver='220624'
 
 import smtplib, ssl, os, sys, argparse, time, subprocess, time
 from datetime import datetime
 from email.message import EmailMessage
 
-def emailSend(port, senderEmail, receiverEmail, smtpServer, password, message, subject):
+def emailSend(port, senderEmail, receiverEmail, smtpServer, password, message, subject, localhost=False):
     # Create a secure SSL context
-    context = ssl.create_default_context()
-    msg = EmailMessage()
-    msg.set_content(message)
-    msg['Subject'] = subject
-    msg['From'] = senderEmail
-    msg['To'] = receiverEmail
-    with smtplib.SMTP_SSL(smtpServer, port, context=context) as server:
-        server.login(senderEmail, password)
-        #server.sendmail(senderEmail, receiverEmail, message)
-        server.send_message(msg)
-        server.quit()
-    print(" => An e-mail to %s sent: %s" %(receiverEmail, subject))
+    if localhost == True:
+        port=25 
+        senderEmail="krios@ethz.ch"
+        msg='Subject: {}\n\n{}'.format(subject, message)
+        try:
+            server = smtplib.SMTP('localhost')
+            server.sendmail(senderEmail, receiverEmail, msg)         
+            print("Successfully sent email")
+            print(" => An email from the localhost sent")
+        except ConnectionRefusedError:
+            print ("Error: unable to send email. ConnectionRefusedError: check your localhost settings. ")
+    else:
+        context = ssl.create_default_context()
+        msg = EmailMessage()
+        msg.set_content(message)
+        msg['Subject'] = subject
+        msg['From'] = senderEmail
+        msg['To'] = receiverEmail
+        with smtplib.SMTP_SSL(smtpServer, port, context=context) as server:
+            server.login(senderEmail, password)
+            #server.sendmail(senderEmail, receiverEmail, message)
+            server.send_message(msg)
+            server.quit()
+            print(" => An e-mail to %s sent: %s" %(receiverEmail, subject))
 
 def now():
     now=datetime.now()
@@ -143,6 +155,7 @@ https://github.com/afanasyevp/cryoem_tools
     add('--restart', default=False, action='store_true', help="Keep sending error emails even if the data collection stops")
     add('--okreport', default=False, action='store_true', help="Keep sending reports that the data is collecting every 7*[time interval] - ~2.5 hours for 20 mins interval")
     add('--delay', default=300, help="Delay in seconds before running the script to make sure some movies are being acquired")
+    add('--localhost', default=False, action='store_true', help="Use localhost settings (specific for the ETH Krioses)")
     #parser.add_argument('--no-feature', dest='feature', action='store_false')
     #parser.set_defaults(feature=True)
     args = parser.parse_args()
@@ -163,7 +176,7 @@ https://github.com/afanasyevp/cryoem_tools
     dataPath=args.path
     dataPathAbs=os.path.abspath(dataPath)
     timeInterval=float(args.time)*60 # in seconds
-    if float(args.time) < 5:
+    if float(args.time) < 0.1:
         print(" => ERROR! Please use --time more than 5 minutes! The program will be terminated")
         sys.exit(2)
     label=args.label
@@ -201,7 +214,7 @@ https://github.com/afanasyevp/cryoem_tools
     subject="DATA COLLECTION MONITOR STARTED [DO NOT REPLY]"
     for email in receiverEmails:
         #print("email:",email)
-        emailSend(port, senderEmail, email, smtpServer, password, messageStart, subject)
+        emailSend(port, senderEmail, email, smtpServer, password, messageStart, subject, args.localhost)
     print(" => Waiting %s seconds to start the folder size estimation...\n"%delay)
     time.sleep(float(delay)) # wait XX seconds before the first check
     #time.sleep(timeInterval)
@@ -218,7 +231,7 @@ https://github.com/afanasyevp/cryoem_tools
         print(" => Estimation time (in seconds) of the folder size: %f"%(end-start))
         #print( " => ", datetimeStart, "Current data size in TB: ", newVolume, "Number of movies: ", newNumber)    
         with open("data_collection_progress.log", "a") as outputFile:
-            outputFile.write("%s %i %.3f \n"%(now(), number, volume))
+            outputFile.write("%s %i %.3f \n"%(now(), number, newVolume))
         if newNumber == number:
             if args.restart == False: statusEmailRestart=' NOT'
             else: statusEmailRestart=''
@@ -235,12 +248,12 @@ https://github.com/afanasyevp/cryoem_tools
             #print(messageError)
             subject='ERROR IN DATA COLLECTION [DO NOT REPLY]'
             for email in receiverEmails:
-                emailSend(port, senderEmail, email, smtpServer, password, messageError, subject)    
+                emailSend(port, senderEmail, email, smtpServer, password, messageError, subject, args.localhost)    
             if args.restart == False:
                 print('''=> ERROR!!! The script is terminated! POTENTIAL ERROR IN THE DATA COLLECTION occured on %s
                 No changes in the volume size has been registered in the last %s minutes:
                 %i movies collected (occupying %.3f TB) in the %s directory. 
-                An email is sent to %s'''%(now(), str(args.time), int(newNumber), float(newVolume/1000000000000), dataPathAbs, receiverEmail))
+                An email is sent to %s'''%(now(), str(args.time), int(newNumber), float(newVolume/1000000000000), dataPathAbs, email))
                 sys.exit(2)
             else:
                 time.sleep(timeInterval*7)
@@ -264,9 +277,9 @@ https://github.com/afanasyevp/cryoem_tools
                     #https://github.com/afanasyevp/cryoem_tools/data_collection_alarm.py
                     #version %s'''%(now(), dataPathAbs, str(args.time), float(newVolume/1000000000000), number, ver) 
                     timeCount+=1
-                    if timeCount % 7 ==0: # to make it less often, increase 7 to 14
+                    if timeCount % 2 ==0: # to make it less often, increase 7 to 14
                         for email in receiverEmails:
-                            emailSend(port, senderEmail, email, smtpServer, password, messageOK, subject)
+                            emailSend(port, senderEmail, email, smtpServer, password, messageOK, subject, args.localhost)
             time.sleep(timeInterval)    
 if __name__ == '__main__':
     main()
