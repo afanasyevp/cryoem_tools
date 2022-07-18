@@ -23,9 +23,8 @@ import os
 import ssl
 import smtplib
 # Global:
-ver = '220717'
+ver = '220718'
 nl = '\n'  # new line for f-strings
-
 
 def emailSend(port, senderEmail, receiverEmail, smtpServer, password, message, subject, localhost=False):
     # Create a secure SSL context
@@ -39,8 +38,7 @@ def emailSend(port, senderEmail, receiverEmail, smtpServer, password, message, s
             print("Successfully sent email")
             print(" => An email from the localhost sent")
         except ConnectionRefusedError:
-            print(
-                "Error: unable to send email. ConnectionRefusedError: check your localhost settings. ")
+            print("Error: unable to send email. ConnectionRefusedError: check your localhost settings. ")
     else:
         context = ssl.create_default_context()
         msg = EmailMessage()
@@ -50,42 +48,18 @@ def emailSend(port, senderEmail, receiverEmail, smtpServer, password, message, s
         msg['To'] = receiverEmail
         with smtplib.SMTP_SSL(smtpServer, port, context=context) as server:
             server.login(senderEmail, password)
-            #server.sendmail(senderEmail, receiverEmail, message)
+            # server.sendmail(senderEmail, receiverEmail, message)
             server.send_message(msg)
             server.quit()
-            print(" => %s An e-mail to %s sent: %s" %
-                  (now(), receiverEmail, subject))
-
+            print(" => %s An e-mail to %s sent: %s" % (now(), receiverEmail, subject))
 
 def now():
     now = datetime.now()
     return now.strftime("%d/%m/%Y %H:%M:%S")
 
-# def checkNumOfMov(path, pattern):
-#    #returns the number of movies
-#    start=time.time()
-#    command = 'find %s -name "*%s"| wc -l'%(path, pattern)
-#    #print("Running find command in bash")
-#    output = subprocess.check_output([command] ,shell=True)
-#    #print(output)
-#    end=time.time()
-#    print(" => Time to estimate the number of movies in seconds: %f"%(end-start))
-#    return int(output.decode('utf-8'))
-# def checkFolderSizeBash(path="."):
-#    #returns the total size of the folder in GB
-#    start=time.time()
-#    command = 'du -cs %s'%(path)
-#    #print("Running du command in bash")
-#    try:
-#        output = subprocess.check_output([command] ,shell=True).decode("utf-8").split("\t")[0]
-#    except subprocess.CalledProcessError as e:
-#        raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))
-#        output=0
-#    end=time.time()
-#    print(" => Time to estimate the folder size in seconds: %f"%(end-start))
-#    return float(output)/1000000000
-# More pythonic but slower (same as two commented functions above)...
-
+def howLong(startSeconds):
+    "Returns the running time since the start (in seconds). Usually defined as datetime.now().timestamp()"
+    return datetime.now().timestamp()-startSeconds
 
 def checkFolderSizePython(path="."):
     '''
@@ -94,16 +68,11 @@ def checkFolderSizePython(path="."):
     totalSize = 0
     with os.scandir(path) as it:
         for entry in it:
-            # print(entry)
             if entry.is_file():
                 totalSize += entry.stat().st_size
-                # if entry.name.endswith(pattern) and entry.is_file():
-                # print(entry.name)
             elif entry.is_dir():
                 totalSize += checkFolderSizePython(entry.path)
-    # print(totalSize)
     return totalSize
-
 
 def checkNumOfMovPython(path=".", pattern="fractions.tiff"):
     '''
@@ -114,27 +83,14 @@ def checkNumOfMovPython(path=".", pattern="fractions.tiff"):
         for entry in it:
             if entry.is_file():
                 if entry.name.endswith(pattern):
-                    # print(entry.name)
                     count += 1
-                    # print(count)
             elif entry.is_dir():
                 count += checkNumOfMovPython(entry.path, pattern)
     return count
 
-# def estimateMovieSize(path, pattern):
-#    #Estimates an approximate size of the movie file in bytes
-#    command = 'find %s -name "*%s"'%(path, pattern)
-#    output = subprocess.check_output([command] ,shell=True)
-#    oneMovieName=output.decode('utf-8').split("\n")[0]
-#    oneMovieSize=float(os.path.getsize(oneMovieName))
-#    print(" => %s file of %4.3f MB was used to estimate the size of the data\n"%(os.path.basename(oneMovieName), oneMovieSize/1000))
-#    return oneMovieSize
-
-
 def emailText(messageType, start, when_sent, folder, time_int, mov_number, volume, die_time):
-    # to add the time remaining until the end
-    '''Generates text for the email. 
-    Requires global variables: ver(version) and nl(new line) 
+    '''Generates text for the email.
+    Requires global variables: ver(version) and nl(new line)
     Types of messages:
     1. Start
     2. Error (script continues)
@@ -164,124 +120,99 @@ def emailText(messageType, start, when_sent, folder, time_int, mov_number, volum
     else:
         print(" => Unknown messageType!")
         sys.exit(2)
-    message += f'{nl}Folder: {folder} {nl}Total size of the folder: {float(volume/1000000000000):3f} TB {nl} Total number of the movie files: {mov_number}'
+    message += f'{nl}Folder: {folder} {nl}Total size of the folder: {float(volume/1000000000000):4f} TB {nl} Total number of the movie files: {mov_number}'
     message += f'{nl}{nl}#{nl}#This message is sent from Python script{nl}#https://github.com/afanasyevp/cryoem_tools/data_collection_alarm.py{nl}#version: {ver}'
     return message, subject
 
-
-def progressMessage(when_displayed, mov_number, volume, time_int):
-    print(f' => {when_displayed} {nl}    Current data size: {float(volume/1000000000000):3f} TB {nl}    Number of movies: {mov_number} {nl}    Next message will be displayed in {time_int} minutes {nl}')
+def progressMessage(when_displayed, mov_number, volume, time_int, messageType):
+    #see instructions of the emailText function
+    print(f' => {when_displayed} Status: {messageType} {nl}    Current data size: {float(volume/1000000000000):3f} TB {nl}    Number of movies: {mov_number} {nl}    Next message will be displayed in {time_int} minutes {nl}')
     with open("data_collection_progress.log", "a") as outputFile:
-        outputFile.write(f'{when_displayed} {mov_number} {volume:6f} {nl}')
-
+        outputFile.write(f'{when_displayed} {mov_number} {float(volume/1000000000000):6f} {nl}')
 
 def main(password, senderEmail, receiverEmails, smtpServer, port, dataPath, timeVar, label, restart, okreport, delay, localhost, die):
+    dataPathAbs = os.path.abspath(dataPath)
     timeInterval = timeVar*60  # in seconds
     okreportSeconds = okreport*60  # in seconds
-    dataPathAbs = os.path.abspath(dataPath)
-    datetimeStart = now()
-    dt0 = datetime.now()
-    startSeconds = dt0.timestamp()
+    startSeconds = datetime.now().timestamp()
     number = checkNumOfMovPython(dataPath, label)
     volume = checkFolderSizePython(dataPath)
 
     # email about the start
     with open("data_collection_progress.log", "a") as outputFile:
-        outputFile.write(f'{nl}{nl} => {now()} Started the data_collection_alarm.py with the following parameters: {nl}password: {password} {nl}emailfrom: {senderEmail} {nl} to: {receiverEmails} {nl} smtp: {smtpServer} {nl}port: {port} {nl} path: {dataPath} {nl}timeVar: {timeVar} {nl}label: {label} {nl}restart: {restart} {nl}okreport: {okreport} {nl}delay: {delay} {nl}localhost: {localhost} {nl}die: {die}{nl}')
-    progressMessage(datetimeStart, number, volume, str(timeVar))
-    messageStart, subjectStart = emailText(
-        'Start', startSeconds, datetimeStart, dataPathAbs, str(timeVar), number, volume, die)
+        outputFile.write(f'{nl}{nl} => {now()} Started the data_collection_alarm.py with the following parameters: {nl}password: {password} {nl}emailfrom: {senderEmail} {nl}to: {receiverEmails} {nl}smtp: {smtpServer} {nl}port: {port} {nl}path: {dataPath} {nl}timeVar: {timeVar} {nl}label: {label} {nl}restart: {restart} {nl}okreport: {okreport} {nl}delay: {delay} {nl}localhost: {localhost} {nl}die: {die}{nl}{nl} # Date | Time | Numer of files | Size in TB {nl}')
+    progressMessage(now(), number, volume, str(timeVar), "START of the script")
+    messageStart, subjectStart = emailText('Start', startSeconds, now(), dataPathAbs, str(timeVar), number, volume, die)
     for email in receiverEmails:
-        emailSend(port, senderEmail, email, smtpServer, password,
-                  messageStart, subjectStart, localhost)
+        emailSend(port, senderEmail, email, smtpServer, password, messageStart, subjectStart, localhost)
+    lastSent = startSeconds  # when the last OK report was sent
 
     # delay to make sure the procedure is running
-    print(
-        f' => {now()} Waiting {delay} seconds to start the folder size estimation...\n')
+    print(f' => {now()} Waiting {delay} seconds to start the folder size estimation...\n')
     time.sleep(delay)
-    timeCount = 1
-    seconds = 0
-    okreportCum = 0
-    dt = datetime.now()
-    seconds = dt.timestamp()
-    while ((seconds-startSeconds) < die*24*60*60):
+    howlong = howLong(startSeconds)
+    while howlong < die*24*60*60:
         newNumber = checkNumOfMovPython(dataPath, label)
         newVolume = checkFolderSizePython(dataPath)
-        progressMessage(datetimeStart, newNumber, newVolume, str(timeVar))
         # if the data collection stops (checking by the number of "label"-files)
-        #print("before number", number)
+        howlong = howLong(startSeconds)
+        #print("howlong", howlong)
         if newNumber == number:
-            messageError, subjectError = emailText(
-                'Error', startSeconds, now(), dataPathAbs, timeVar, newNumber, newVolume, die)
+            messageError, subjectError = emailText('Error', startSeconds, now(), dataPathAbs, timeVar, newNumber, newVolume, die)
+            progressMessage(now(), newNumber, newVolume, str(timeVar), "ERROR in data collection!")
             for email in receiverEmails:
-                emailSend(port, senderEmail, email, smtpServer,
-                          password, messageError, subjectError, localhost)
+                emailSend(port, senderEmail, email, smtpServer, password, messageError, subjectError, localhost)
+                lastSent = datetime.now().timestamp()
             if restart == False:
-                print(
-                    f'=> The script is terminated! POTENTIAL ERROR IN THE DATA COLLECTION occured on {now()}. {nl} No changes in the volume size has been registered in the last {str(timeVar)} minutes in the {dataPathAbs} directory! {nl}')
-                messageStop, subjectStop = emailText(
-                    'Stop', startSeconds, now(), dataPathAbs, timeVar, newNumber, newVolume, die)
+                print(f'=> The script is terminated! POTENTIAL ERROR IN THE DATA COLLECTION occured on {now()}. {nl} No changes in the volume size has been registered in the last {str(timeVar)} minutes in the {dataPathAbs} directory! {nl}')
+                messageStop, subjectStop = emailText('Stop', startSeconds, now(), dataPathAbs, timeVar, newNumber, newVolume, die)
                 for email in receiverEmails:
-                    emailSend(port, senderEmail, email, smtpServer,
-                              password, messageStop, subjectStop, localhost)
+                    emailSend(port, senderEmail, email, smtpServer, password, messageStop, subjectStop, localhost)
                 sys.exit(2)
             else:
                 number = checkNumOfMovPython(dataPath, label)
-                #print("inside numder: ", number)
-                time.sleep(timeInterval)
-                #volume = checkFolderSizePython(dataPath)
-        # if the datacollection continues:
+                # volume = checkFolderSizePython(dataPath)
+        # if everything is fine and the datacollection continues:
         else:
             number = newNumber
-            #volume= newVolume
-            #print(" dt.timestamp()-startSeconds", dt.timestamp()-startSeconds)
-            #print("okreportCum", okreportCum)
-            if okreport != 0 and dt.timestamp()-startSeconds > okreportCum:
-
-                messageOK, subjectOK = emailText(
-                    "OK", startSeconds, now(), dataPathAbs, timeVar, newNumber, newVolume, die)
+            progressMessage(now(), newNumber, newVolume, str(timeVar), "OK")
+            # volume= newVolume
+            if okreport != 0 and (datetime.now().timestamp()-lastSent) > okreportSeconds:
+                messageOK, subjectOK = emailText("OK", startSeconds, now(), dataPathAbs, timeVar, newNumber, newVolume, die)
                 for email in receiverEmails:
-                    emailSend(port, senderEmail, email, smtpServer,
-                              password, messageOK, subjectOK, localhost)
-                okreportCum -= okreportSeconds*timeCount
-                timeCount += 1
+                    emailSend(port, senderEmail, email, smtpServer,password, messageOK, subjectOK, localhost)
+                lastSent = datetime.now().timestamp()
         time.sleep(timeInterval)
-        dt = datetime.now()
-        seconds = dt.timestamp()
-        okreportCum += dt.timestamp()-startSeconds
-        #print("last:", number)
-        #print("Running for: ", (dt.timestamp()-startSeconds))
+        howlong = howLong(startSeconds)
 
     print(f'{nl} => WARNING! The program ran to its completion after {die} day(s) of running.')
-    messageFinish, subjectFinish = emailText(
-        "Finish", startSeconds, now(), dataPathAbs, timeVar, newVolume, number, die)
+    messageFinish, subjectFinish = emailText("Finish", startSeconds, now(), dataPathAbs, timeVar, newVolume, number, die)
     for email in receiverEmails:
-        emailSend(port, senderEmail, email, smtpServer, password,
-                  messageFinish, subjectFinish, localhost)
-    progressMessage(now(), number, newVolume, timeVar)
+        emailSend(port, senderEmail, email, smtpServer, password, messageFinish, subjectFinish, localhost)
+    progressMessage(now(), number, newVolume, timeVar, "END of the script")
     # print(subjectStop)
 
 
 if __name__ == '__main__':
     output_text = '''
 ==================================== data_collection_alarm.py ===================================
-data_collection_alarm.py monitors changes in the folder with the collected data. In case the 
-folder size (including subfolders) or the number of movie-files is constant over certain period 
-of time (20 min by default), it will send you an email (several email addresses can be used). 
-It can also send you an email to confirm the data collection is OK. 
+data_collection_alarm.py monitors changes in the folder with the collected data. In case the
+folder size (including subfolders) or the number of movie-files is constant over certain period
+of time (20 min by default), it will send you an email (several email addresses can be used).
+It can also send you an email to confirm the data collection is OK.
 
 !!! Password and setting up an email account for sending emails:
-Option #1:  
+Option #1:
 - Ask Pavel Afanasyev (by email/DM on twitter) for the password to use the default email account.
-Option #2:  
+Option #2:
 - Create your own yahoo email account to send emails using this script
-- If you’re using yahoo mail, go to the "Account Info" => "Account Security" => "App Password" 
+- If you’re using yahoo mail, go to the "Account Info" => "Account Security" => "App Password"
 - Click on Generate app password => generate a password (in Enter your apps name put any name)
-- Copy the password and click "Done". This will be your password to use in this script. 
+- Copy the password and click "Done". This will be your password to use in this script.
 
 Restart the script in case of data collection failure.
-Check your spam folder after the start of the script - an email indicating the start of the 
-monitoring should arrive. 
+Check your spam folder after the start of the script - an email indicating the start of the
+monitoring should arrive.
 
 [version %s]
 Written and tested in python3.8.5 (requires python 3.6 or a later version)
@@ -323,17 +254,49 @@ https://github.com/afanasyevp/cryoem_tools
         print("\nExample: data_collection_alarm.py  --to MYEMAIL1@ethz.ch MYEMAIL2@ethz.ch --password uzsurgjbaxokkmjw --time 20  --okreport 90 --restart --path PATHTOMYDATA --label fractions.tiff --die 1 ")
         sys.exit(2)
 
-    if float(args.time) < 0.1:
+    if float(args.time) < 5:
         print(" => ERROR! Please use --time more than 5 minutes! The program will be terminated")
         sys.exit(2)
 
     print(f'{nl} => {now()} running the script: {nl}data_collection_alarm.py  --to {args.to} --password {args.password} --emailfrom {args.emailfrom} --to {args.to} --smtp {args.smtp} --port {args.port} --path {args.path} --time {args.time} --label {args.label} --restart {args.restart} --okreport {args.okreport} --delay {args.delay} --localhost {args.localhost} --die {args.die}{nl}')
     print(f'{nl} => NOTE! The program will be terminated in {args.die} day(s). To change the running time use --die option {nl}')
-    p = multiprocessing.Process(target=main, name="main", args=(args.password, args.emailfrom, args.to, args.smtp,
-                                                                args.port, args.path, float(args.time), args.label, args.restart, float(args.okreport), float(args.delay), args.localhost, float(args.die), ))
-
+    p = multiprocessing.Process(target=main, name="main", args=(args.password, args.emailfrom, args.to, args.smtp, args.port, args.path, float(args.time), args.label, args.restart, float(args.okreport), float(args.delay), args.localhost, float(args.die), ))
     p.start()
-
     # time.sleep(float(args.die)*60*60*24)
     # p.terminate()
     # p.join
+
+# Bash implementation
+# def checkNumOfMov(path, pattern):
+#    #returns the number of movies
+#    start=time.time()
+#    command = 'find %s -name "*%s"| wc -l'%(path, pattern)
+#    #print("Running find command in bash")
+#    output = subprocess.check_output([command] ,shell=True)
+#    #print(output)
+#    end=time.time()
+#    print(" => Time to estimate the number of movies in seconds: %f"%(end-start))
+#    return int(output.decode('utf-8'))
+# def checkFolderSizeBash(path="."):
+#    #returns the total size of the folder in GB
+#    start=time.time()
+#    command = 'du -cs %s'%(path)
+#    #print("Running du command in bash")
+#    try:
+#        output = subprocess.check_output([command] ,shell=True).decode("utf-8").split("\t")[0]
+#    except subprocess.CalledProcessError as e:
+#        raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))
+#        output=0
+#    end=time.time()
+#    print(" => Time to estimate the folder size in seconds: %f"%(end-start))
+#    return float(output)/1000000000
+# def estimateMovieSize(path, pattern):
+#    #Estimates an approximate size of the movie file in bytes
+#    command = 'find %s -name "*%s"'%(path, pattern)
+#    output = subprocess.check_output([command] ,shell=True)
+#    oneMovieName=output.decode('utf-8').split("\n")[0]
+#    oneMovieSize=float(os.path.getsize(oneMovieName))
+#    print(" => %s file of %4.3f MB was used to estimate the size of the data\n"%(os.path.basename(oneMovieName), oneMovieSize/1000))
+#    return oneMovieSize
+
+# More pythonic but slower (same as two commented functions above)...
