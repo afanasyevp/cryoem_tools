@@ -22,6 +22,7 @@ import sys
 import os
 import ssl
 import smtplib
+
 # Global:
 ver = '220718'
 nl = '\n'  # new line for f-strings
