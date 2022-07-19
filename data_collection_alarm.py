@@ -23,7 +23,7 @@ import os
 import ssl
 import smtplib
 # Global:
-ver = '220718'
+ver = '220719'
 nl = '\n'  # new line for f-strings
 
 def emailSend(port, senderEmail, receiverEmail, smtpServer, password, message, subject, localhost=False):
@@ -106,7 +106,7 @@ def emailText(messageType, start, when_sent, folder, time_int, mov_number, volum
         message += f'START of the data collection monitor on {when_sent}. {nl}{nl}If there are no new files appearing in the {folder} directory within {time_int} minutes, you will be notified by another email. The script will be terminated in {running_left} hours {nl}.'
         subject = "STARTED data colection monitor [do not reply please]"
     elif messageType == "Error":
-        message += f'POTENTIAL ERROR IN THE DATA COLLECTION occured on {when_sent}. {nl}{nl}No changes in the volume size has been registered in the last {time_int} minutes. {nl} You will be notified by another email about the data colection progress in {time_int} minutes. The script will be terminated in {running_left} hours. {nl}'
+        message += f'POTENTIAL ERROR IN THE DATA COLLECTION occured on {when_sent}. {nl}{nl}No changes in the volume size has been registered in the last {time_int} minutes. {nl} You will be notified by another email about the data colection progress only if the data collection continues. The script will be terminated in {running_left} hours. {nl}'
         subject = 'ERROR in data collection [do not reply please]'
     elif messageType == "OK":
         message += f'PROGRESS in the data collection on {when_sent}. {nl}{nl}If there are no new files appearing in the directory within {time_int} minutes, you will be notified by another email. The script will be terminated in {running_left} hours. {nl}'
@@ -151,6 +151,7 @@ def main(password, senderEmail, receiverEmails, smtpServer, port, dataPath, time
     print(f' => {now()} Waiting {delay} seconds to start the folder size estimation...\n')
     time.sleep(delay)
     howlong = howLong(startSeconds)
+    restartStatus=0 #to prevent multiple emails about the same error
     while howlong < die*24*60*60:
         newNumber = checkNumOfMovPython(dataPath, label)
         newVolume = checkFolderSizePython(dataPath)
@@ -158,23 +159,26 @@ def main(password, senderEmail, receiverEmails, smtpServer, port, dataPath, time
         howlong = howLong(startSeconds)
         #print("howlong", howlong)
         if newNumber == number:
-            messageError, subjectError = emailText('Error', startSeconds, now(), dataPathAbs, timeVar, newNumber, newVolume, die)
-            progressMessage(now(), newNumber, newVolume, str(timeVar), "ERROR in data collection!")
-            for email in receiverEmails:
-                emailSend(port, senderEmail, email, smtpServer, password, messageError, subjectError, localhost)
-                lastSent = datetime.now().timestamp()
-            if restart == False:
-                print(f'=> The script is terminated! POTENTIAL ERROR IN THE DATA COLLECTION occured on {now()}. {nl} No changes in the volume size has been registered in the last {str(timeVar)} minutes in the {dataPathAbs} directory! {nl}')
-                messageStop, subjectStop = emailText('Stop', startSeconds, now(), dataPathAbs, timeVar, newNumber, newVolume, die)
-                for email in receiverEmails:
-                    emailSend(port, senderEmail, email, smtpServer, password, messageStop, subjectStop, localhost)
-                sys.exit(2)
-            else:
+            if restartStatus==0:
+                restartStatus=1
+                progressMessage(now(), newNumber, newVolume, str(timeVar), "ERROR in data collection!")
+                if restart == False:
+                    print(f'=> The script is terminated! POTENTIAL ERROR IN THE DATA COLLECTION occured on {now()}. {nl} No changes in the volume size has been registered in the last {str(timeVar)} minutes in the {dataPathAbs} directory! {nl}')
+                    messageStop, subjectStop = emailText('Stop', startSeconds, now(), dataPathAbs, timeVar, newNumber, newVolume, die)
+                    for email in receiverEmails:
+                        emailSend(port, senderEmail, email, smtpServer, password, messageStop, subjectStop, localhost)
+                    sys.exit(2)
+                else: 
+                    messageError, subjectError = emailText('Error', startSeconds, now(), dataPathAbs, timeVar, newNumber, newVolume, die)
+                    for email in receiverEmails:
+                        emailSend(port, senderEmail, email, smtpServer, password, messageError, subjectError, localhost)
+                        lastSent = datetime.now().timestamp()
                 number = checkNumOfMovPython(dataPath, label)
-                # volume = checkFolderSizePython(dataPath)
+                #volume = checkFolderSizePython(dataPath)
         # if everything is fine and the datacollection continues:
         else:
             number = newNumber
+            restartStatus=0
             progressMessage(now(), newNumber, newVolume, str(timeVar), "OK")
             # volume= newVolume
             if okreport != 0 and (datetime.now().timestamp()-lastSent) > okreportSeconds:
@@ -297,6 +301,4 @@ https://github.com/afanasyevp/cryoem_tools
 #    oneMovieName=output.decode('utf-8').split("\n")[0]
 #    oneMovieSize=float(os.path.getsize(oneMovieName))
 #    print(" => %s file of %4.3f MB was used to estimate the size of the data\n"%(os.path.basename(oneMovieName), oneMovieSize/1000))
-#    return oneMovieSize
-
-# More pythonic but slower (same as two commented functions above)...
+#    reremo
