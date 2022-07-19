@@ -260,7 +260,7 @@ https://github.com/afanasyevp/cryoem_tools
 
     if float(args.time) < 5:
         print(" => ERROR! Please use --time more than 5 minutes! The program will be terminated")
-        sys.exit(2)
+        #sys.exit(2)
 
     print(f'{nl} => {now()} running the script: {nl}data_collection_alarm.py  --to {args.to} --password {args.password} --emailfrom {args.emailfrom} --to {args.to} --smtp {args.smtp} --port {args.port} --path {args.path} --time {args.time} --label {args.label} --restart {args.restart} --okreport {args.okreport} --delay {args.delay} --localhost {args.localhost} --die {args.die}{nl}')
     print(f'{nl} => NOTE! The program will be terminated in {args.die} day(s). To change the running time use --die option {nl}')
