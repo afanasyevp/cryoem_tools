@@ -301,4 +301,4 @@ https://github.com/afanasyevp/cryoem_tools
 #    oneMovieName=output.decode('utf-8').split("\n")[0]
 #    oneMovieSize=float(os.path.getsize(oneMovieName))
 #    print(" => %s file of %4.3f MB was used to estimate the size of the data\n"%(os.path.basename(oneMovieName), oneMovieSize/1000))
-#    reremo
+#    return oneMovieSize
