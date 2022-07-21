@@ -1,4 +1,4 @@
-#!/Applications/anaconda/bin/python
+#!/usr/bin/env python3
 
 ver='210823'
 import subprocess, sys, argparse
