@@ -7,7 +7,7 @@ Also, creates a text file with the structure of the archived folder.
 Requires UNIX tools "tree", "bc".
 
 Pavel Afanasyev
-version: 210323
+version: 220923
 https://github.com/afanasyevp/cryoem_tools
 ================================================================================================
 '
@@ -91,6 +91,7 @@ if (( $(echo "$sizesub > $sizeori" |bc -l) )); then
     printf "\n\n => WARNING!!! The size of $1 folder is $sizeori_h (requested to split into $2 TB files). A single $folder.tar.gz file will be used as an output\n"
     printf "\n => Archiving in progress...\n"
     tar -cvzf  $outfolder/$1.tar.gz $1
+    #tar --use-compress-program="pigz -k " -cvzf $outfolder/$1.tar.gz $1
     printf "\n => Counting the total size of the compressed data...\n"
     sizefinal=$(du -hcs $outfolder/$folder.tar.gz | grep total$ | cut -f 1)
     printf "\n => Program finished \n"
@@ -106,6 +107,7 @@ if (( $(echo "$sizesub > $sizeori" |bc -l) )); then
         printf "\n\n  => Archiving $sizeori_h of data in the $1 folder...\n"
         printf "$num_of_outfiles or less output files will be used as an output \n"
         tar -cvzf - $1 | split -b $sizesub_int - "$outfolder/$folder.tar.gz.part_"
+        #tar -cvzf - $1 | pigz -c | split -d -b $sizesub_int - "$outfolder/$folder.tar.gz.part_"
         printf "\n => Counting the total size of the compressed data..."
         sizefinal=$(find $outfolder -type f -name $folder.tar.gz.part_\* -exec du -ch {} + | grep total$ | cut -f 1)
         printf "\n => Program finished \n"
