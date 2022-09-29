@@ -132,8 +132,8 @@ def main(mult_factor, path, label):
           
 if __name__== '__main__':
     output_text='''
-==================================== star_mult_coord.py =================================================
-uncoa_star.py multiplies X,Y coordinates from the star file by the given multiplication factor
+==================================== mult_coord.py =================================================
+mult_coord.py multiplies X,Y coordinates from the star file by the given multiplication factor
 
 [version %s]
 Written and tested in python3.8.5 (requires python 3.6 or a later version)
@@ -141,7 +141,7 @@ Pavel Afanasyev
 https://github.com/afanasyevp/cryoem_tools
 ====================================================================================================
 
-Example: star_mult_coord.py --label star --path ./ --mult 0.25 ''' % (ver)
+Example: mult_coord.py --label star --path ./ --mult 0.25 ''' % (ver)
 
     parser = argparse.ArgumentParser(description="")
     add = parser.add_argument
@@ -158,4 +158,4 @@ Example: star_mult_coord.py --label star --path ./ --mult 0.25 ''' % (ver)
     path=args.path
     label=args.label
     main(mult_factor, path, label)
-    print("Program completed")
+    print(" => Program completed")
