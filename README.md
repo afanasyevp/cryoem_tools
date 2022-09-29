@@ -59,5 +59,5 @@ Plots FSC from cisTEM output (.txt file) or relion postprocess_fsc.xml file
 ### star_modif.py 
 Excludes/extracts micrographs (after manual selection) from micrographs.star or particles.star file. Also, for a given star file, can return a list of micrographs. See instructions for coarsen.py
 
-### uncoa_star.py
-multiplies X,Y coordinates from the star files in the working folder by the given multiplication factor
+### star_mult_coord.py
+multiplies coordinates from the particle-picking files (.cbox, .star, .box) in the working folder by the given multiplication factor
