@@ -53,11 +53,11 @@ monitors changes in the number of movie-files in the folder. In case the number 
 ### invert.sh
 Inverts handedness of the 3D-reconstruction using relion_image_handler
 
+### mult_coord.py
+multiplies coordinates from the particle-picking files (.cbox, .star, .box) in the working folder by the given multiplication factor
+
 ### plot_fsc.py
 Plots FSC from cisTEM output (.txt file) or relion postprocess_fsc.xml file 
 
 ### star_modif.py 
 Excludes/extracts micrographs (after manual selection) from micrographs.star or particles.star file. Also, for a given star file, can return a list of micrographs. See instructions for coarsen.py
-
-### mult_coord.py
-multiplies coordinates from the particle-picking files (.cbox, .star, .box) in the working folder by the given multiplication factor
