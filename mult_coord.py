@@ -104,9 +104,11 @@ def mult_coord(filename, mult_factor):
                         if line_element.isnumeric():
                             line[count]= "%.2f" % (float(line_element)*mult_factor)
                     elif count == _EstWidth_index-1:
-                        line[count]= "%.2f" % (float(line_element)*mult_factor)
+                        if line_element.isnumeric():
+                            line[count]= "%.2f" % (float(line_element)*mult_factor)
                     elif count == _EstHeight_index-1:
-                        line[count]= "%.2f" % (float(line_element)*mult_factor)
+                        if line_element.isnumeric():
+                            line[count]= "%.2f" % (float(line_element)*mult_factor)
                 temp=' '.join(line)
                 f2.write(temp+'\n')
  
@@ -158,4 +160,5 @@ Example: mult_coord.py --label star --path ./ --mult 0.25 ''' % (ver)
     path=args.path
     label=args.label
     main(mult_factor, path, label)
-    print(" => Program completed")
+    #print(" => Program completed")
+
