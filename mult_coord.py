@@ -13,7 +13,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
 
-ver=221016
+ver=221025
 
 import os
 import sys
@@ -147,26 +147,27 @@ def mult_coord(filename, mult_factor, fil_to_part):
                     elif count == _EstHeight_index-1:
                         if is_number(line_element):
                             line[count]= mult_by(line_element, mult_factor)
-                    elif count == _filamentid_index-1:
-                        #print(line_element)
-                        if fil_to_part:
-                            write_last_particle=True
-                            temp=' '.join(line[:-1])
-                            if line[count] != temp_tulip[0]:
-                                if temp_tulip[0] == -1:
-                                    #print("case -1 :", temp)
-                                    f2.write(temp+'\n')
-                                else:
-                                    #print("case else than -1: ", temp_tulip[1])
-                                    f2.write(temp_tulip[1]+'\n')
-                                    f2.write(temp+'\n')
-                            #else:
-                                #print("case else else: ", "print nothing")
-
-                            write_line=False
-                            temp_tulip=(line[count], temp)
-                            #print("temp_tulip", temp_tulip)
-
+                    elif fil_to_part == True:
+                         if count == _filamentid_index-1:
+                            #print(line_element)
+                             if fil_to_part:
+                                write_last_particle=True
+                                temp=' '.join(line[:-1])
+                                if line[count] != temp_tulip[0]:
+                                    if temp_tulip[0] == -1:
+                                        #print("case -1 :", temp)
+                                        f2.write(temp+'\n')
+                                    else:
+                                        #print("case else than -1: ", temp_tulip[1])
+                                        f2.write(temp_tulip[1]+'\n')
+                                        f2.write(temp+'\n')
+                                #else:
+                                    #print("case else else: ", "print nothing")
+    
+                                write_line=False
+                                temp_tulip=(line[count], temp)
+                                #print("temp_tulip", temp_tulip)
+    
                                     
                 temp=' '.join(line)
                 if write_line:
