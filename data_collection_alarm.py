@@ -266,9 +266,9 @@ https://github.com/afanasyevp/cryoem_tools
     print(f'{nl} => NOTE! The program will be terminated in {args.die} day(s). To change the running time use --die option {nl}')
     p = multiprocessing.Process(target=main, name="main", args=(args.password, args.emailfrom, args.to, args.smtp, args.port, args.path, float(args.time), args.label, args.restart, float(args.okreport), float(args.delay), args.localhost, float(args.die), ))
     p.start()
-    # time.sleep(float(args.die)*60*60*24)
-    # p.terminate()
-    # p.join
+    time.sleep(float(args.die)*60*60*24)
+    p.terminate()
+    p.join
 
 # Bash implementation
 # def checkNumOfMov(path, pattern):
