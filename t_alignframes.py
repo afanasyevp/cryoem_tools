@@ -127,7 +127,12 @@ Example: t_alignframes.py --label .mdoc --path ./ --vary 0.25 --bin 2 1 --outdir
         sys.exit()
     print(f"\n => Using {input['software']} program to align frames")
     input['path']=os.path.normpath(args.path) # trims "/" from the path
-    input['outdir']=os.path.normpath(args.outdir)
+    outdir_raw=args.outdir
+    if outdir_raw[0] == "~":
+        outdir=os.path.abspath(os.path.expanduser(outdir_raw))
+    else:
+        outdir=os.path.abspath(outdir_raw)
+    input['outdir']=os.path.normpath(outdir)
     input['outsuffix']=args.outsuff
     input['label']=args.label
     input['vary']=float(args.vary)
