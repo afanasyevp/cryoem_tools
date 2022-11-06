@@ -100,9 +100,9 @@ Example: t_alignframes.py --label .mdoc --path ./ --vary 0.25 --bin 2 1 --outdir
 
     parser = argparse.ArgumentParser(description="")
     add = parser.add_argument
-    add('--bin', default='2 1',nargs="+", help="bin option in alignframes. Space separated")
+    add('--bin', default="2 1", help="bin option in alignframes. Space separated")
     add('--gain', help="gain file for non-normalised frames")
-    add('--gpu', default="0", nargs="+", help="which GPUs to use. Space separated")
+    add('--gpu', default="0", help="which GPUs to use. Space separated")
     add('--label', default=".mdoc", help="Files to run alignments on")
     add('--log', default=True, action='store_true', help='Create t_alignframes_XXX.log file')
     add('--path', default="./",
@@ -135,13 +135,12 @@ Example: t_alignframes.py --label .mdoc --path ./ --vary 0.25 --bin 2 1 --outdir
     input['outsuffix']=args.outsuff
     input['label']=args.label
     input['vary']=float(args.vary)
-    input['bin']=','.join((args.bin).split())
     if args.gain:
         input['gain']=args.gain
     else:
         print("\n => WARNING! No gain file has been provided. No gain normalisation will be applied.")
-    input['gpu']=','.join((str(args.gpu)).split())
-
+    input['gpu']=",".join(args.gpu.split())
+    input['bin']=",".join(args.bin.split())
     print(f"\n => Input library: {input} ")
     time.sleep(2)
     main(input)
