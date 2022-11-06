@@ -100,14 +100,13 @@ Example: t_alignframes.py --label .mdoc --path ./ --vary 0.25 --bin 2 1 --outdir
 
     parser = argparse.ArgumentParser(description="")
     add = parser.add_argument
-    add('--bin', default='2 1', help="bin option in alignframes. Space separated")
+    add('--bin', default='2 1',nargs="+", help="bin option in alignframes. Space separated")
     add('--gain', help="gain file for non-normalised frames")
-    add('--gpu', default="0", help="which GPUs to use. Space separated")
+    add('--gpu', default="0", nargs="+", help="which GPUs to use. Space separated")
     add('--label', default=".mdoc", help="Files to run alignments on")
     add('--log', default=True, action='store_true', help='Create t_alignframes_XXX.log file')
     add('--path', default="./",
         help="Path to the folder with your mdoc files. Default value: ./ ")
-    add('--restart', default=False, action='store_true', help='Exclude the completed results (after crash)')
     add('--software', default="alignframes", action='store_true', help='Software of choise')
     add('--outdir', default="../aligned_TS", help="Output directory name. By default (when running from frames folder), ../aligned_TS will be created")
     add('--outsuff', default="_ali", help="Suffix of the output files: for stacktilt_01.mrc.mdoc this will mean stacktilt_01_ali.mrc")
