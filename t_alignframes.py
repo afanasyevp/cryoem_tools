@@ -44,7 +44,7 @@ def find_targets(path, label, outdir, outsuffix):
     list_all = glob.glob(path+"/*"+label)
     list_done = glob.glob(outdir+"/*"+outsuffix+".mrc")
     if len(list_all) > 0:
-        print("list_all: ", list_all)
+        #print("list_all: ", list_all)
         insuffix=''.join(pathlib.Path(list_all[0]).suffixes)
         set_all = set([os.path.basename(i).split(".")[0] for i in list_all])
         set_done=set([os.path.basename(i).split(".")[0].split(outsuffix)[0] for i in list_done])
@@ -125,7 +125,7 @@ Example: t_alignframes.py --label .mdoc --path ./ --vary 0.25 --bin 2 1 --outdir
     if not input['software']:
         print(f" => ERROR! Software {args.software} is not found. Make sure it is sourced or check the input!")
         sys.exit()
-    print(f" => Using {input['software']} program to align frames")
+    print(f"\n => Using {input['software']} program to align frames")
     input['path']=os.path.normpath(args.path) # trims "/" from the path
     input['outdir']=os.path.normpath(args.outdir)
     input['outsuffix']=args.outsuff
@@ -135,10 +135,10 @@ Example: t_alignframes.py --label .mdoc --path ./ --vary 0.25 --bin 2 1 --outdir
     if args.gain:
         input['gain']=args.gain
     else:
-        print(" => WARNING! No gain file has been provided. No gain normalisation will be applied.")
+        print("\n => WARNING! No gain file has been provided. No gain normalisation will be applied.")
     input['gpu']=','.join((str(args.gpu)).split())
 
-    print(f" => The following command will be used to run frame alignments: {input} ")
-    time.sleep(5)
+    print(f"\n => Input library: {input} ")
+    time.sleep(2)
     main(input)
-    print(" => Program completed")
+    print("\n => Program completed")
