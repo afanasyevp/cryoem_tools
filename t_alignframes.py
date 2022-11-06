@@ -24,6 +24,24 @@ import subprocess
 import shutil
 import time
 
+
+def argparse_list_to_str_commas(input_list):
+    my_string=''
+    my_string=','.join(input_list)
+    return my_string
+
+def create_aliframes_command(args_dict):
+    # for a dictionary of arguments, creates a sting - command template for bash without inputs and outputs
+    if not args_dict['software']:
+        print(" => Error! The software/command is not found in the dictionary of input arguments")
+        sys.exit()
+    if 'gain' not in args_dict:
+        cmd=F"{args_dict['software']} -gpu {args_dict['gpu']} -vary {args_dict['vary']} -bin {args_dict['bin']}"
+    else:
+        cmd=F"{args_dict['software']} -gpu {args_dict['gpu']} -vary {args_dict['vary']} -bin {args_dict['bin']}  -gain {args_dict['gain']}"
+    return cmd
+
+
 def mkdir(outdirname):
     # Checks if the folder exist, creates a new one if it does not; returns full path of that directory
     if not os.path.exists(outdirname):
@@ -34,7 +52,7 @@ def mkdir(outdirname):
 def find_targets(path, label, outdir, outsuffix):
     '''
     In the given path finds unfinished targets to process. For example:
-    
+
     #Input folder: input/stacktilt_01.mrc.mdoc  input/stacktilt_02.mrc.mdoc input/stacktilt_03.mrc.mdoc
     #Output folder: ../aligned_TS/stacktilt_01_ali.mrc
 
@@ -67,23 +85,19 @@ def main(input):
     targets, output_files=find_targets(input['path'], input['label'], input['outdir'], input['outsuffix'])
     print(f'{len(targets)} targets were found')
     time.sleep(1)
-    if 'gain' not in input:
-        for target, output_file in zip(targets, output_files):
-            cmd=F"{input['software']} -gpu {input['gpu']} -vary {input['vary']} -bin {input['bin']} -mdoc {target} -output {output_file}"
-            print(f" => Running command: {cmd}")
-            p=subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
-            (output, err) = p.communicate()  
-            p_status = p.wait()
-    else:
-        for target, output_file in zip(targets, output_files):
-            cmd=F"{input['software']} -gpu {input['gpu']} -vary {input['vary']} -bin {input['bin']} -mdoc {target} -output {output_file} -gain {input['gain']}"
-            print(f" => Running command: {cmd}")
-            p=subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
-            (output, err) = p.communicate()  
-            p_status = p.wait()
+    cmd_template=create_aliframes_command(input)
+    for target, output_file in zip(targets, output_files):
+        cmd=cmd_template + F" -mdoc {target} -output {output_file}"
+        print(f" => Running command: {cmd}")
+        p=subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+        #(output, err) = p.communicate()
+        #p_status = p.wait()
+        for line in p.stdout:
+            sys.stdout.write(line.decode("utf-8"))
+            #print(line)
     os.chdir(cwd)
     print(f" => Returning to {cwd} directory")
-          
+
 if __name__== '__main__':
     output_text='''
 ==================================== t_alignframes.py =================================================
@@ -100,9 +114,9 @@ Example: t_alignframes.py --label .mdoc --path ./ --vary 0.25 --bin 2 1 --outdir
 
     parser = argparse.ArgumentParser(description="")
     add = parser.add_argument
-    add('--bin', default="2 1", help="bin option in alignframes. Space separated")
+    add('--bin', default=["2", "1"], nargs="+", help="bin option in alignframes. Space separated")
     add('--gain', help="gain file for non-normalised frames")
-    add('--gpu', default="0", help="which GPUs to use. Space separated")
+    add('--gpu', default="0", nargs="+", help="which GPUs to use. Space separated")
     add('--label', default=".mdoc", help="Files to run alignments on")
     add('--log', default=True, action='store_true', help='Create t_alignframes_XXX.log file')
     add('--path', default="./",
@@ -111,11 +125,12 @@ Example: t_alignframes.py --label .mdoc --path ./ --vary 0.25 --bin 2 1 --outdir
     add('--outdir', default="../aligned_TS", help="Output directory name. By default (when running from frames folder), ../aligned_TS will be created")
     add('--outsuff', default="_ali", help="Suffix of the output files: for stacktilt_01.mrc.mdoc this will mean stacktilt_01_ali.mrc")
     add('--vary', default=0.25, help="vary option in alignframes")
-    args, unknown = parser.parse_known_args()
+    args = parser.parse_args()
+    print(args)
     print(output_text)
     parser.print_help()
     cwd=os.getcwd()
-    
+
     input={}
     if args.software != "alignframes":
         print('Function is not implemented yet')
@@ -139,8 +154,9 @@ Example: t_alignframes.py --label .mdoc --path ./ --vary 0.25 --bin 2 1 --outdir
         input['gain']=args.gain
     else:
         print("\n => WARNING! No gain file has been provided. No gain normalisation will be applied.")
-    input['gpu']=",".join(args.gpu.split())
-    input['bin']=",".join(args.bin.split())
+
+    input['gpu']=argparse_list_to_str_commas(args.gpu)
+    input['bin']=argparse_list_to_str_commas(args.bin)
     print(f"\n => Input library: {input} ")
     time.sleep(2)
     main(input)
