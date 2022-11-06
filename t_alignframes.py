@@ -61,14 +61,14 @@ def main(input):
     time.sleep(1)
     if 'gain' not in input:
         for target, output_file in zip(targets, output_files):
-            cmd=F"{input['software']} -gpu {input['gpu']} -vary {input['vary']} -bin {input['bin']} -mdoc {target} {output_file}"
+            cmd=F"{input['software']} -gpu {input['gpu']} -vary {input['vary']} -bin {input['bin']} -mdoc {target} -output {output_file}"
             print(f" => Running command: {cmd}")
             p=subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
             (output, err) = p.communicate()  
             p_status = p.wait()
     else:
         for target, output_file in zip(targets, output_files):
-            cmd=F"{input['software']} -gpu {input['gpu']} -vary {input['vary']} -bin {input['bin']} -mdoc {target} {output_file} -gain {input['gain']}"
+            cmd=F"{input['software']} -gpu {input['gpu']} -vary {input['vary']} -bin {input['bin']} -mdoc {target} -output {output_file} -gain {input['gain']}"
             print(f" => Running command: {cmd}")
             p=subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
             (output, err) = p.communicate()  
