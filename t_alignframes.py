@@ -102,7 +102,7 @@ Example: t_alignframes.py --label .mdoc --path ./ --vary 0.25 --bin 2 1 --outdir
     add = parser.add_argument
     add('--bin', default='2 1', help="bin option in alignframes. Space separated")
     add('--gain', help="gain file for non-normalised frames")
-    add('--gpu', default=0, help="which GPUs to use. Space separated")
+    add('--gpu', default="0", help="which GPUs to use. Space separated")
     add('--label', default=".mdoc", help="Files to run alignments on")
     add('--log', default=True, action='store_true', help='Create t_alignframes_XXX.log file')
     add('--path', default="./",
