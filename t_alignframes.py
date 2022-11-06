@@ -43,19 +43,27 @@ def find_targets(path, label, outdir, outsuffix):
     '''
     list_all = glob.glob(path+"/*"+label)
     list_done = glob.glob(outdir+"/*"+outsuffix+".mrc")
-    insuffix=''.join(pathlib.Path(list_all[0]).suffixes)
-    set_all = set([os.path.basename(i).split(".")[0] for i in list_all])
-    set_done=set([os.path.basename(i).split(".")[0].split(outsuffix)[0] for i in list_done])
-    #print("set_done: ", set_done)
-    list_to_do= sorted(set_all - set_done)
-    #print("list_to_do", list_to_do)
-    files_to_do=[path+"/"+i+insuffix for i in list_to_do]
-    files_output=[outdir+"/"+i+outsuffix+".mrc" for i in list_to_do]
+    if len(list_all) > 0:
+        print("list_all: ", list_all)
+        insuffix=''.join(pathlib.Path(list_all[0]).suffixes)
+        set_all = set([os.path.basename(i).split(".")[0] for i in list_all])
+        set_done=set([os.path.basename(i).split(".")[0].split(outsuffix)[0] for i in list_done])
+        #print("set_done: ", set_done)
+        list_to_do= sorted(set_all - set_done)
+        #print("list_to_do", list_to_do)
+        files_to_do=[path+"/"+i+insuffix for i in list_to_do]
+        files_output=[outdir+"/"+i+outsuffix+".mrc" for i in list_to_do]
     #print("files to do: ", files_to_do)
-    return files_to_do, files_output
+        return files_to_do, files_output
+    else:
+        print("ERROR! No input files found!")
+        sys.exit()
 
 def main(input):
     outdir=mkdir(input['outdir'])
+    cwd=os.getcwd()
+    os.chdir(input['path'])
+    print(f" => Working in {input['path']} directory")
     targets, output_files=find_targets(input['path'], input['label'], input['outdir'], input['outsuffix'])
     print(f'{len(targets)} targets were found')
     time.sleep(1)
@@ -73,7 +81,8 @@ def main(input):
             p=subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
             (output, err) = p.communicate()  
             p_status = p.wait()
-
+    os.chdir(cwd)
+    print(f" => Returning to {cwd} directory")
           
 if __name__== '__main__':
     output_text='''
@@ -106,6 +115,7 @@ Example: t_alignframes.py --label .mdoc --path ./ --vary 0.25 --bin 2 1 --outdir
     args = parser.parse_args()
     print(output_text)
     parser.print_help()
+    cwd=os.getcwd()
     
     input={}
     if args.software != "alignframes":
