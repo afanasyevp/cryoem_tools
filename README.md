@@ -61,3 +61,6 @@ Plots FSC from cisTEM output (.txt file) or relion postprocess_fsc.xml file
 
 ### star_modif.py 
 Excludes/extracts micrographs (after manual selection) from micrographs.star or particles.star file. Also, for a given star file, can return a list of micrographs. See instructions for coarsen.py
+
+### t_alignframes.py
+Batch processing for movie alignments on tomography data
