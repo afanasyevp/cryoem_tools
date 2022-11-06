@@ -111,7 +111,7 @@ Example: t_alignframes.py --label .mdoc --path ./ --vary 0.25 --bin 2 1 --outdir
     add('--outdir', default="../aligned_TS", help="Output directory name. By default (when running from frames folder), ../aligned_TS will be created")
     add('--outsuff', default="_ali", help="Suffix of the output files: for stacktilt_01.mrc.mdoc this will mean stacktilt_01_ali.mrc")
     add('--vary', default=0.25, help="vary option in alignframes")
-    args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
     print(output_text)
     parser.print_help()
     cwd=os.getcwd()
