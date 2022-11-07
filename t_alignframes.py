@@ -13,7 +13,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
 
-ver=221106
+ver=221107
 
 import os
 import sys
@@ -36,9 +36,9 @@ def create_aliframes_command(args_dict):
         print(" => Error! The software/command is not found in the dictionary of input arguments")
         sys.exit()
     if 'gain' not in args_dict:
-        cmd=F"{args_dict['software']} -gpu {args_dict['gpu']} -vary {args_dict['vary']} -bin {args_dict['bin']}"
+        cmd=F"{args_dict['software']} -gpu {args_dict['gpu']} -vary {args_dict['vary']} -bin {args_dict['bin']} -path {args_dict['framespath']}"
     else:
-        cmd=F"{args_dict['software']} -gpu {args_dict['gpu']} -vary {args_dict['vary']} -bin {args_dict['bin']}  -gain {args_dict['gain']}"
+        cmd=F"{args_dict['software']} -gpu {args_dict['gpu']} -vary {args_dict['vary']} -bin {args_dict['bin']}  -gain {args_dict['gain']} -path {args_dict['framespath']}"
     return cmd
 
 
@@ -80,9 +80,9 @@ def find_targets(path, label, outdir, outsuffix):
 def main(input):
     outdir=mkdir(input['outdir'])
     cwd=os.getcwd()
-    os.chdir(input['path'])
-    print(f" => Working in {input['path']} directory")
-    targets, output_files=find_targets(input['path'], input['label'], input['outdir'], input['outsuffix'])
+    os.chdir(input['mdocpath'])
+    print(f" => Working in {input['mdocpath']} directory")
+    targets, output_files=find_targets(input['mdocpath'], input['label'], input['outdir'], input['outsuffix'])
     print(f'{len(targets)} targets were found')
     time.sleep(1)
     cmd_template=create_aliframes_command(input)
@@ -110,7 +110,7 @@ Pavel Afanasyev
 https://github.com/afanasyevp/cryoem_tools
 ====================================================================================================
 
-Example: t_alignframes.py --label .mdoc --path ./ --vary 0.25 --bin 2 1 --outdir ../aligned_TS --gain gain.mrc --gpu 0 --alignframes''' % (ver)
+Example: t_alignframes.py --label .mdoc --mdocpath ./ --framespath ./ --vary 0.25 --bin 2 1 --outdir ../aligned_TS --gain gain.mrc --gpu 0 --alignframes''' % (ver)
 
     parser = argparse.ArgumentParser(description="")
     add = parser.add_argument
@@ -119,8 +119,10 @@ Example: t_alignframes.py --label .mdoc --path ./ --vary 0.25 --bin 2 1 --outdir
     add('--gpu', default="0", nargs="+", help="which GPUs to use. Space separated")
     add('--label', default=".mdoc", help="Files to run alignments on")
     add('--log', default=True, action='store_true', help='Create t_alignframes_XXX.log file')
-    add('--path', default="./",
+    add('--mdocpath', default="./",
         help="Path to the folder with your mdoc files. Default value: ./ ")
+    add('--framespath', default="./",
+        help="Path to the folder with your frames files. Default value: ./ ")
     add('--software', default="alignframes", action='store_true', help='Software of choise')
     add('--outdir', default="../aligned_TS", help="Output directory name. By default (when running from frames folder), ../aligned_TS will be created")
     add('--outsuff', default="_ali", help="Suffix of the output files: for stacktilt_01.mrc.mdoc this will mean stacktilt_01_ali.mrc")
@@ -140,7 +142,8 @@ Example: t_alignframes.py --label .mdoc --path ./ --vary 0.25 --bin 2 1 --outdir
         print(f" => ERROR! Software {args.software} is not found. Make sure it is sourced or check the input!")
         sys.exit()
     print(f"\n => Using {input['software']} program to align frames")
-    input['path']=os.path.normpath(args.path) # trims "/" from the path
+    input['mdocpath']=os.path.normpath(args.mdocpath) # trims "/" from the path
+    input['framespath']=os.path.normpath(args.framespath) # trims "/" from the path
     outdir_raw=args.outdir
     if outdir_raw[0] == "~":
         outdir=os.path.abspath(os.path.expanduser(outdir_raw))
