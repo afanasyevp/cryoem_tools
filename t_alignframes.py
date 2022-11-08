@@ -13,7 +13,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
 
-ver=221107
+ver=221108
 
 import os
 import sys
@@ -72,7 +72,7 @@ def find_targets(path, label, outdir, outsuffix):
         files_to_do=[path+"/"+i+insuffix for i in list_to_do]
         files_output=[outdir+"/"+i+outsuffix+".mrc" for i in list_to_do]
     #print("files to do: ", files_to_do)
-        return files_to_do, files_output
+        return files_to_do, files_output, len(list_all)
     else:
         print("ERROR! No input files found!")
         sys.exit()
@@ -81,10 +81,10 @@ def main(input):
     outdir=mkdir(input['outdir'])
     cwd=os.getcwd()
     os.chdir(input['mdocpath'])
-    print(f" => Working in {input['mdocpath']} directory")
-    targets, output_files=find_targets(input['mdocpath'], input['label'], input['outdir'], input['outsuffix'])
-    print(f'{len(targets)} targets were found')
-    time.sleep(1)
+    print(f" \n => Working in {input['mdocpath']} directory")
+    targets, output_files, number_of_ts=find_targets(input['mdocpath'], input['label'], input['outdir'], input['outsuffix'])
+    print(f' \n => {len(targets)} TS to process were found (out of {number_of_ts}) ')
+    #time.sleep(1)
     cmd_template=create_aliframes_command(input)
     for target, output_file in zip(targets, output_files):
         cmd=cmd_template + F" -mdoc {target} -output {output_file}"
@@ -108,9 +108,7 @@ All arguments should be space separated.
 Written and tested in python3.8.5
 Pavel Afanasyev
 https://github.com/afanasyevp/cryoem_tools
-====================================================================================================
-
-Example: t_alignframes.py --label .mdoc --mdocpath ./ --framespath ./ --vary 0.25 --bin 2 1 --outdir ../aligned_TS --gain gain.mrc --gpu 0 --alignframes''' % (ver)
+=======================================================================================================''' % (ver)
 
     parser = argparse.ArgumentParser(description="")
     add = parser.add_argument
@@ -124,15 +122,18 @@ Example: t_alignframes.py --label .mdoc --mdocpath ./ --framespath ./ --vary 0.2
     add('--framespath', default="./",
         help="Path to the folder with your frames files. Default value: ./ ")
     add('--software', default="alignframes", action='store_true', help='Software of choise')
-    add('--outdir', default="../aligned_TS", help="Output directory name. By default (when running from frames folder), ../aligned_TS will be created")
+    add('--outdir', help="Output directory name.")
     add('--outsuff', default="_ali", help="Suffix of the output files: for stacktilt_01.mrc.mdoc this will mean stacktilt_01_ali.mrc")
     add('--vary', default=0.25, help="vary option in alignframes")
     args = parser.parse_args()
-    print(args)
+    #print(args)
     print(output_text)
     parser.print_help()
+    print("\n Example: t_alignframes.py --label .mdoc --mdocpath ./ --framespath ./ --vary 0.25 --bin 2 1 --outdir ../aligned_TS --gain gain.mrc --gpu 0 --alignframes")
     cwd=os.getcwd()
-
+    if not args.outdir:
+        print(" \n => ERROR! No input provided! Please find usage instruction above or run:  t_alignframes.py --help")
+        sys.exit()
     input={}
     if args.software != "alignframes":
         print('Function is not implemented yet')
@@ -141,9 +142,10 @@ Example: t_alignframes.py --label .mdoc --mdocpath ./ --framespath ./ --vary 0.2
     if not input['software']:
         print(f" => ERROR! Software {args.software} is not found. Make sure it is sourced or check the input!")
         sys.exit()
-    print(f"\n => Using {input['software']} program to align frames")
-    input['mdocpath']=os.path.normpath(args.mdocpath) # trims "/" from the path
-    input['framespath']=os.path.normpath(args.framespath) # trims "/" from the path
+    #print(f"\n => Using {input['software']} program to align frames")
+    input['mdocpath']=os.path.abspath(args.mdocpath)
+    input['framespath']=os.path.abspath(args.framespath)
+
     outdir_raw=args.outdir
     if outdir_raw[0] == "~":
         outdir=os.path.abspath(os.path.expanduser(outdir_raw))
@@ -154,13 +156,17 @@ Example: t_alignframes.py --label .mdoc --mdocpath ./ --framespath ./ --vary 0.2
     input['label']=args.label
     input['vary']=float(args.vary)
     if args.gain:
-        input['gain']=args.gain
+        input['gain']=os.path.abspath(os.path.expanduser(args.gain))
     else:
         print("\n => WARNING! No gain file has been provided. No gain normalisation will be applied.")
-
     input['gpu']=argparse_list_to_str_commas(args.gpu)
     input['bin']=argparse_list_to_str_commas(args.bin)
-    print(f"\n => Input library: {input} ")
-    time.sleep(2)
+    print("\n=======================================================================================================")
+    print(f"\n\n => Input parameters: ")
+    for key, value in input.items():
+        print(f"  --{key}  {value}")
+    time.sleep(1)
     main(input)
-    print("\n => Program completed")
+    print("\n => Program t_alignframes.py (version %s) completed"%ver)
+    
+    
