@@ -107,7 +107,7 @@ All arguments should be space separated.
 [version %s]
 Written and tested in python3.8.5
 Pavel Afanasyev
-https://github.com/afanasyevp/cryoem_tools ''' % (prog, ver)
+https://github.com/afanasyevp/cryoem_tools \n''' % (prog, ver)
 
     parser = argparse.ArgumentParser(description="")
     add = parser.add_argument
