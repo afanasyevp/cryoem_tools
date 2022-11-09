@@ -14,6 +14,7 @@
 # -*- coding: utf-8 -*-
 prog='t_alignframes.py'
 ver=221109
+underline=("="*70)+("="*(len(prog)+2))
 
 import os
 import sys
@@ -100,15 +101,15 @@ def main(input):
 
 if __name__== '__main__':
     output_text='''
-==================================== %s =================================================
-batch processing for the movie alignments: for now, only aliframes (IMOD) implemented
-All arguments should be space separated.
+=================================== %s ===================================
+batch processing for the movie alignments: for now, only aliframes (IMOD) 
+implemented. All arguments should be space separated.
 
 [version %s]
 Written and tested in python3.8.5
 Pavel Afanasyev
-https://github.com/afanasyevp/cryoem_tools ''' % (prog, ver)
-
+https://github.com/afanasyevp/cryoem_tools \n%s''' % (prog, ver, underline)
+    underline=("="*70)+("="*(len(prog)+2))
     parser = argparse.ArgumentParser(description="")
     add = parser.add_argument
     add('--bin', default=["2", "1"], nargs="+", help="bin option in alignframes. Space separated")
@@ -131,7 +132,7 @@ https://github.com/afanasyevp/cryoem_tools ''' % (prog, ver)
     print(f"\n Example: {prog} --software alignframes --label .mdoc --mdocpath ./ --framespath ./ --vary 0.25 --bin 2 1 --outdir ../aligned_TS --gain gain.mrc --gpu 0")
     cwd=os.getcwd()
     if not args.outdir:
-        print(" \n => ERROR! No input provided! Please find usage instruction above or run:  t_alignframes.py --help")
+        print(" \n => ERROR! No input provided! Please find usage instruction above or run: t_alignframes.py --help")
         sys.exit()
     input={}
     if args.software != "alignframes":
@@ -160,7 +161,7 @@ https://github.com/afanasyevp/cryoem_tools ''' % (prog, ver)
         print("\n => WARNING! No gain file has been provided. No gain normalisation will be applied.")
     input['gpu']=argparse_list_to_str_commas(args.gpu)
     input['bin']=argparse_list_to_str_commas(args.bin)
-    print("\n=======================================================================================================")
+    print(underline)
     print(f"\n\n => Input parameters: ")
     for key, value in input.items():
         print(f"  --{key}  {value}")
