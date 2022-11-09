@@ -108,8 +108,13 @@ implemented. All arguments should be space separated.
 [version %s]
 Written and tested in python3.8.5
 Pavel Afanasyev
+<<<<<<< HEAD
 https://github.com/afanasyevp/cryoem_tools \n%s''' % (prog, ver, underline)
     underline=("="*70)+("="*(len(prog)+2))
+=======
+https://github.com/afanasyevp/cryoem_tools \n''' % (prog, ver)
+
+>>>>>>> d521598668d79082c95b9cd90e6bc935699151f2
     parser = argparse.ArgumentParser(description="")
     add = parser.add_argument
     add('--bin', default=["2", "1"], nargs="+", help="bin option in alignframes. Space separated")
