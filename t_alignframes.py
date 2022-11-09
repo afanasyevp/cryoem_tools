@@ -12,8 +12,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
-
-ver=221108
+prog='t_alignframes.py'
+ver=221109
 
 import os
 import sys
@@ -100,15 +100,14 @@ def main(input):
 
 if __name__== '__main__':
     output_text='''
-==================================== t_alignframes.py =================================================
+==================================== %s =================================================
 batch processing for the movie alignments: for now, only aliframes (IMOD) implemented
 All arguments should be space separated.
 
 [version %s]
 Written and tested in python3.8.5
 Pavel Afanasyev
-https://github.com/afanasyevp/cryoem_tools
-=======================================================================================================''' % (ver)
+https://github.com/afanasyevp/cryoem_tools ''' % (prog, ver)
 
     parser = argparse.ArgumentParser(description="")
     add = parser.add_argument
@@ -121,7 +120,7 @@ https://github.com/afanasyevp/cryoem_tools
         help="Path to the folder with your mdoc files. Default value: ./ ")
     add('--framespath', default="./",
         help="Path to the folder with your frames files. Default value: ./ ")
-    add('--software', default="alignframes", action='store_true', help='Software of choise')
+    add('--software', default="alignframes", help='Software of choise')
     add('--outdir', help="Output directory name.")
     add('--outsuff', default="_ali", help="Suffix of the output files: for stacktilt_01.mrc.mdoc this will mean stacktilt_01_ali.mrc")
     add('--vary', default=0.25, help="vary option in alignframes")
@@ -129,7 +128,7 @@ https://github.com/afanasyevp/cryoem_tools
     #print(args)
     print(output_text)
     parser.print_help()
-    print("\n Example: t_alignframes.py --label .mdoc --mdocpath ./ --framespath ./ --vary 0.25 --bin 2 1 --outdir ../aligned_TS --gain gain.mrc --gpu 0 --alignframes")
+    print(f"\n Example: {prog} --software alignframes --label .mdoc --mdocpath ./ --framespath ./ --vary 0.25 --bin 2 1 --outdir ../aligned_TS --gain gain.mrc --gpu 0")
     cwd=os.getcwd()
     if not args.outdir:
         print(" \n => ERROR! No input provided! Please find usage instruction above or run:  t_alignframes.py --help")
@@ -167,6 +166,6 @@ https://github.com/afanasyevp/cryoem_tools
         print(f"  --{key}  {value}")
     time.sleep(1)
     main(input)
-    print("\n => Program t_alignframes.py (version %s) completed"%ver)
+    print("\n => Program %s (version %s) completed"%(prog, ver))
     
     
