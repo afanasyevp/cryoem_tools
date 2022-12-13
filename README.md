@@ -64,3 +64,6 @@ Excludes/extracts micrographs (after manual selection) from micrographs.star or 
 
 ### t_alignframes.py
 Batch processing for movie alignments on tomography data
+
+### .vimrc
+.vimrc file to be used for optimisation of using vi. To be kept in the home folder
