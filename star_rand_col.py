@@ -13,7 +13,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
 
-ver=230126
+ver=230127
 
 import random
 import argparse
@@ -61,7 +61,7 @@ Written and tested in python3.9.7
 Pavel Afanasyev
 https://github.com/afanasyevp/cryoem_tools
 ====================================================================================================
-Example: ./star_rand_col.py  --i particles.star --o particles_rand_AngleRot.star --col "_rlnAngleRot" --range -180 180 ''' % (ver)
+Example: ./star_rand_col.py  --i particles.star --o particles_rand_AngleRot.star --col _rlnAngleRot --range -180 180 ''' % (ver)
 
     parser = argparse.ArgumentParser(description="")
     add = parser.add_argument
