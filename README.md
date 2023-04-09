@@ -68,5 +68,3 @@ Replaces one column in a star file with random numbers
 ### t_alignframes.py
 Batch processing for movie alignments on tomography data
 
-### .vimrc
-.vimrc file to be used for optimisation of using vi. To be kept in the home folder
