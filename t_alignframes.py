@@ -13,7 +13,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
 prog='t_alignframes.py'
-ver=221109
+ver=230419
 underline=("="*70)+("="*(len(prog)+2))
  
 import os
@@ -33,13 +33,22 @@ def argparse_list_to_str_commas(input_list):
 
 def create_aliframes_command(args_dict):
     # for a dictionary of arguments, creates a sting - command template for bash without inputs and outputs
-    if not args_dict['software']:
+    filtered_dict = {k: v for k, v in args_dict.items() if v is not None}
+    if not filtered_dict['software']:
         print(" => Error! The software/command is not found in the dictionary of input arguments")
         sys.exit()
-    if 'gain' not in args_dict:
-        cmd=F"{args_dict['software']} -gpu {args_dict['gpu']} -vary {args_dict['vary']} -bin {args_dict['bin']} -path {args_dict['framespath']}"
+
+    #check for gain
+    if 'gain' not in filtered_dict:
+        cmd=F"{filtered_dict['software']}  -vary {filtered_dict['vary']} -bin {filtered_dict['bin']} -path {filtered_dict['framespath'] }"
     else:
-        cmd=F"{args_dict['software']} -gpu {args_dict['gpu']} -vary {args_dict['vary']} -bin {args_dict['bin']}  -gain {args_dict['gain']} -path {args_dict['framespath']}"
+        cmd=F"{filtered_dict['software']}  -vary {filtered_dict['vary']} -bin {filtered_dict['bin']}  -gain {filtered_dict['gain']} -path {filtered_dict['framespath'] }"
+    
+    #check for gpu
+    if 'gpu' in filtered_dict:
+        cmd += F" -gpu { filtered_dict['gpu']} "
+    #print("cmd", cmd)
+
     return cmd
 
 
@@ -83,19 +92,20 @@ def main(input):
     cwd=os.getcwd()
     os.chdir(input['mdocpath'])
     print(f" \n => Working in {input['mdocpath']} directory")
-    targets, output_files, number_of_ts=find_targets(input['mdocpath'], input['label'], input['outdir'], input['outsuffix'])
+    #print("input:", input)
+    targets, output_files, number_of_ts=find_targets(input['mdocpath'], input['label'], input['outdir'], input['outsuff'])
     print(f' \n => {len(targets)} TS to process were found (out of {number_of_ts}) ')
     #time.sleep(1)
     cmd_template=create_aliframes_command(input)
     for target, output_file in zip(targets, output_files):
-        cmd=cmd_template + F" -mdoc {target} -output {output_file}"
+        cmd=cmd_template + F" -mdoc {target} -output {output_file} "
         print(f" => Running command: {cmd}")
         p=subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
         #(output, err) = p.communicate()
         #p_status = p.wait()
         for line in p.stdout:
             sys.stdout.write(line.decode("utf-8"))
-            #print(line)
+        #    #print(line)
     os.chdir(cwd)
     print(f" => Returning to {cwd} directory")
 
@@ -106,7 +116,7 @@ batch processing for the movie alignments: for now, only aliframes (IMOD)
 implemented. All arguments should be space separated.
 
 [version %s]
-Written and tested in python3.8.5
+Written and tested in python3.11
 Pavel Afanasyev
 https://github.com/afanasyevp/cryoem_tools \n%s''' % (prog, ver, underline)
 
@@ -114,7 +124,6 @@ https://github.com/afanasyevp/cryoem_tools \n%s''' % (prog, ver, underline)
     add = parser.add_argument
     add('--bin', default=["2", "1"], nargs="+", help="bin option in alignframes. Space separated")
     add('--gain', help="gain file for non-normalised frames")
-    add('--gpu', default="0", nargs="+", help="which GPUs to use. Space separated")
     add('--label', default=".mdoc", help="Files to run alignments on")
     add('--log', default=True, action='store_true', help='Create t_alignframes_XXX.log file')
     add('--mdocpath', default="./",
@@ -125,16 +134,22 @@ https://github.com/afanasyevp/cryoem_tools \n%s''' % (prog, ver, underline)
     add('--outdir', help="Output directory name.")
     add('--outsuff', default="_ali", help="Suffix of the output files: for stacktilt_01.mrc.mdoc this will mean stacktilt_01_ali.mrc")
     add('--vary', default=0.25, help="vary option in alignframes")
+    add('--gpu', nargs="+", help="which GPUs to use. Space separated. For alignframes: GPU 0 to use the best GPU on the system, or the number of a specific GPU (numbered from 1)")
+    add('--pixel', help="Pixel size. mdoc value will be overwritten.")
     args = parser.parse_args()
-    #print(args)
+    #print(vars(args))
     print(output_text)
     parser.print_help()
-    print(f"\n Example: {prog} --software alignframes --label .mdoc --mdocpath ./ --framespath ./ --vary 0.25 --bin 2 1 --outdir ../aligned_TS --gain gain.mrc --gpu 0")
+    print(f"\n Example: {prog} --software alignframes --label .mdoc --mdocpath ./ --framespath ./ --vary 0.25 --bin 2 1 --outdir ../aligned_TS --gain gain.mrc \n")
+    print(underline)
     cwd=os.getcwd()
     if not args.outdir:
         print(" \n => ERROR! No input provided! Please find usage instruction above or run: t_alignframes.py --help")
         sys.exit()
-    input={}
+    
+    input=vars(args)
+    # Check arguments and modify
+    #print("before", input)
     if args.software != "alignframes":
         print('Function is not implemented yet')
         sys.exit()
@@ -152,21 +167,20 @@ https://github.com/afanasyevp/cryoem_tools \n%s''' % (prog, ver, underline)
     else:
         outdir=os.path.abspath(outdir_raw)
     input['outdir']=os.path.normpath(outdir)
-    input['outsuffix']=args.outsuff
-    input['label']=args.label
-    input['vary']=float(args.vary)
     if args.gain:
         input['gain']=os.path.abspath(os.path.expanduser(args.gain))
     else:
         print("\n => WARNING! No gain file has been provided. No gain normalisation will be applied.")
-    input['gpu']=argparse_list_to_str_commas(args.gpu)
     input['bin']=argparse_list_to_str_commas(args.bin)
-    print(underline)
-    print(f"\n\n => Input parameters: ")
+    input['gpu']=argparse_list_to_str_commas(args.gpu)
+
+    
+    #print("after", input)
+    print(f"\n\n Input parameters: ")
     for key, value in input.items():
         print(f"  --{key}  {value}")
+    #print(input)
     time.sleep(1)
     main(input)
     print("\n => Program %s (version %s) completed"%(prog, ver))
-    
-    
+
