@@ -23,7 +23,7 @@ import os
 import ssl
 import smtplib
 # Global:
-ver = '220719'
+ver = '230430'
 nl = '\n'  # new line for f-strings
 
 def emailSend(port, senderEmail, receiverEmail, smtpServer, password, message, subject, localhost=False):
