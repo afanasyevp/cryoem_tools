@@ -46,13 +46,16 @@ def emailSend(port, senderEmail, receiverEmail, smtpServer, password, message, s
         msg['Subject'] = subject
         msg['From'] = senderEmail
         msg['To'] = receiverEmail
-        with smtplib.SMTP_SSL(smtpServer, port, context=context) as server:
-            server.login(senderEmail, password)
-            # server.sendmail(senderEmail, receiverEmail, message)
-            server.send_message(msg)
-            server.quit()
-            print(" => %s An e-mail to %s sent: %s" % (now(), receiverEmail, subject))
-
+        try:
+            with smtplib.SMTP_SSL(smtpServer, port, context=context) as server:
+                server.login(senderEmail, password)
+                # server.sendmail(senderEmail, receiverEmail, message)
+                server.send_message(msg)
+                server.quit()
+                print(" => %s An e-mail to %s sent: %s" % (now(), receiverEmail, subject))
+        except smtplib.SMTPDataError as e:
+            print("SMTPDataError: ", e)
+            
 def now():
     now = datetime.now()
     return now.strftime("%d/%m/%Y %H:%M:%S")
