@@ -19,7 +19,7 @@ underline=("="*70)+("="*(len(prog)+2))
 import os
 import sys
 import argparse
-import glob 
+import glob
 import subprocess
 import shutil
 import time
@@ -43,6 +43,7 @@ def find_executable(pattern):
         if len(candidate)>0: executables.add(candidate)
         if not line: break
     #print("executables: ", executables)
+    executables.remove(shutil.which("t_aretomo.py"))
     if len(executables) == 0:
         print(f" => {pattern} software was not found!")
         sys.exit(1)
@@ -57,11 +58,12 @@ def find_executable(pattern):
             sys.exit(1)
         else:
             return list(executables)[0]
-    
-        
+
+
 def create_aretomo_command(args_dict):
     # for a dictionary of arguments, creates a sting - command template for bash without inputs and outputs
     filtered_dict = {k: v for k, v in args_dict.items() if v is not None}
+    #print("soft: ", filtered_dict['Software'])
     if not filtered_dict['Software']:
         print(" => Error! The software/command is not found in the dictionary of input arguments")
         sys.exit(1)
@@ -74,10 +76,13 @@ def create_aretomo_command(args_dict):
 
 
     #print("targets: ", targets)
-    print("list_todo_angfiles: ", list_todo_angfiles)
-
-    for target, angfile in zip(targets, list_todo_angfiles):
-        cmd=F"{filtered_dict['Software']} -InMrc {target} -OutMrc {filtered_dict['OutDir']}/{os.path.splitext(os.path.basename(target))[0]}{filtered_dict['OutSuffix']} -AngFile {angfile}  "
+    #print("list_todo_angfiles: ", list_todo_angfiles)
+    #print("targets: ", targets)
+    for n, target in enumerate(targets):
+        if args_dict["AngFileDir"]:
+        	cmd=F"{filtered_dict['Software']} -InMrc {target} -OutMrc {filtered_dict['OutDir']}/{os.path.splitext(os.path.basename(target))[0]}{filtered_dict['OutSuffix']} -AngFile {list_todo_angfiles[n]}  "
+        else:
+            cmd=F"{filtered_dict['Software']} -InMrc {target} -OutMrc {filtered_dict['OutDir']}/{os.path.splitext(os.path.basename(target))[0]}{filtered_dict['OutSuffix']}  "
         for key, value in filtered_dict.items():
             if key in filtered_dict:
                 # check for aretomo-only options
@@ -91,7 +96,7 @@ def create_aretomo_command(args_dict):
                 else:
                     cmd += F" -{key} {value} "
         cmd_list.append(cmd)
-    #print("cmd:", cmd)
+    #print("cmd:", cmd_list)
     return cmd_list
 
 def mkdir(outdirname):
@@ -107,12 +112,13 @@ def find_targets_aretomo(path, label, outdir, outsuffix, angfile=True, angfiledi
     Input folder: input/stacktilt_01_ali.mrc  input/stacktilt_02_ali.mrc input/stacktilt_03_ali.mrc
     Output folder/files: input/aretomo/stacktilt_01_ali_rec.mrc input/aretomo/stacktilt_02_ali_rec.mrc input/aretomo/stacktilt_03_ali_rec.mrc
     [label] is a pattern to search; here it is "_ali.mrc" [outsuffix] is "_rec.mrc"
-    
+
     The last three arguments are needed to search for the _tlt.txt files and creating a separate list of those.
     '''
 
     list_all = glob.glob(path+"/*"+label)
     list_all = [os.path.abspath(path) for path in list_all]
+    #print(list_all)
     if len(list_all) == 0:
         print("ERROR! No input files found!")
         sys.exit(1)
@@ -124,7 +130,7 @@ def find_targets_aretomo(path, label, outdir, outsuffix, angfile=True, angfiledi
     dict_all={}
     dict_done={}
     dict_todo={}
-    # for /code_workplace/cryoem_tools/b87_ts22_ali.mrc 
+    # for /code_workplace/cryoem_tools/b87_ts22_ali.mrc
     # will create key-value pair {b87_ts22_ali: /code_workplace/cryoem_tools/b87_ts22_ali.mrc}
     # here outsuffix is _rec.mrc
     for i in list_all: dict_all[os.path.splitext(os.path.basename(i))[0]]=i
@@ -134,8 +140,8 @@ def find_targets_aretomo(path, label, outdir, outsuffix, angfile=True, angfiledi
     # exclude key, values from  dict_all if a key is in dict_done
     dict_todo = {key: value for key, value in dict_all.items() if key not in dict_done}
     list_todo=sorted(list(dict_todo.values()))
-
-    #Now, let's search for _tlt.txt files for undone list and build an additional list 
+    #print(list_todo)
+    #Now, let's search for _tlt.txt files for undone list and build an additional list
     list_todo_angfiles=[]
     if angfile==True:
         for i in list_todo:
@@ -168,11 +174,11 @@ def main(input):
 
 if __name__== '__main__':
     output_text='''
-=================================== %s =================================== 
-Batch processing for AreTomo. Assumes all reconstructions to be in the 
+=================================== %s ===================================
+Batch processing for AreTomo. Assumes all reconstructions to be in the
 --InDir (input) folder. Arguments are based on Aretomo version 1.3.4
 
-Don't use --InMrc argument, the program will search for reconstructions 
+Don't use --InMrc argument, the program will search for reconstructions
 in a given folder (--InDir) based on (--InSuffix) pattern.
 
 All arguments should be space separated
@@ -226,17 +232,17 @@ https://github.com/afanasyevp/cryoem_tools\n%s''' % (prog, ver,underline)
     #parser.print_help()
     print(f"\n Example: {prog} --Software aretomo --InDir ./ --OutDir ./aretomo  --InSuffix _ali.mrc --OutSuffix _rec.mrc --AngFileDir ./ --AngFileSuffix _tlt.txt --PixSize 2.678 --Kv 300 --Cs 2.7 --ImgDose 3.4 --OutBin 4 --VolZ 1600 --Patch 5 4 --Gpu 0 ")
     cwd=os.getcwd()
-    
+
     input=vars(args)
     input['Software']=find_executable(args.Software)
     #input['Software']=shutil.which(args.software)
     print(f"\n => Using {input['Software']} program to align frames")
-    
+
     if args.OutDir[0] == "~":
         input['OutDir']=os.path.abspath(os.path.expanduser(args.OutDir))
     else:
         input['OutDir']=os.path.abspath(args.OutDir)
-    
+
     input['InDir']=os.path.abspath(args.InDir)
     if args.AngFileDir:
         input['AngFileDir']=os.path.abspath(args.AngFileDir)
@@ -246,5 +252,3 @@ https://github.com/afanasyevp/cryoem_tools\n%s''' % (prog, ver,underline)
     time.sleep(1)
     main(input)
     print("\n => Program %s (version %s) completed"%(prog, ver))
-    
-    
