@@ -68,3 +68,7 @@ Replaces one column in a star file with random numbers
 ### t_alignframes.py
 Batch processing for movie alignments on tomography data
 
+### t_aretomo.py
+Batch processing for aretomo
+
+
