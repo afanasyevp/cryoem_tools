@@ -67,7 +67,12 @@ def create_aretomo_command(args_dict):
         sys.exit(1)
 
     cmd_list=[]
-    targets, list_todo_angfiles=find_targets_aretomo(filtered_dict['InDir'], filtered_dict['InSuffix'], filtered_dict['OutDir'], filtered_dict['OutSuffix'], angfile=True, angfiledir=filtered_dict['AngFileDir'], angfilesuffix=filtered_dict['AngFileSuffix'])
+    if args_dict["AngFileDir"]:
+        targets, list_todo_angfiles=find_targets_aretomo(filtered_dict['InDir'], filtered_dict['InSuffix'], filtered_dict['OutDir'], filtered_dict['OutSuffix'], angfile=True, angfiledir=filtered_dict['AngFileDir'], angfilesuffix=filtered_dict['AngFileSuffix'])
+    else:
+        targets, list_todo_angfiles=find_targets_aretomo(filtered_dict['InDir'], filtered_dict['InSuffix'], filtered_dict['OutDir'], filtered_dict['OutSuffix'], angfile=False)
+
+
     #print("targets: ", targets)
     print("list_todo_angfiles: ", list_todo_angfiles)
 
@@ -188,7 +193,7 @@ https://github.com/afanasyevp/cryoem_tools\n%s''' % (prog, ver,underline)
     add('--OutSuffix', default="_rec.mrc", help="Default: _rec.mrc | Suffix of the output files to search for: ts01_ali.mrc will be searching for *_ali.mrc")
     add('--OutBin', default=4, help="Default: 4 | Output binning")
     add('--TiltRange', help="Default: none | Should be followed by two end angles as: -60 60")
-    add('--AngFileDir', default="./", help="Default: ./ | Folder with single-column text file with all the tilt angles. The second column can be the dose for dose-weighting")
+    add('--AngFileDir',  help="Default: ./ | Folder with single-column text file with all the tilt angles. The second column can be the dose for dose-weighting")
     add('--AngFileSuffix', default="_tlt.txt", help="Default: _tlt.txt | Suffix of the files with tilt angles.")
     add('--VolZ', default="1600", help="Default: 1600 | Height of the reconstructed volume")
     add('--Align', default="1", help="Default: 1 | When 0, prevents the alignments")
@@ -233,7 +238,8 @@ https://github.com/afanasyevp/cryoem_tools\n%s''' % (prog, ver,underline)
         input['OutDir']=os.path.abspath(args.OutDir)
     
     input['InDir']=os.path.abspath(args.InDir)
-    input['AngFileDir']=os.path.abspath(args.AngFileDir)
+    if args.AngFileDir:
+        input['AngFileDir']=os.path.abspath(args.AngFileDir)
     print(f"\n\n => Input parameters: ")
     for key, value in input.items():
         print(f"  --{key}  {value}")
