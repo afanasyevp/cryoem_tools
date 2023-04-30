@@ -161,14 +161,22 @@ def main(input):
     cmd_list=create_aretomo_command(input)
     print(f' \n => {len(cmd_list)} files to process were found  \n => Starting the process...\n')
     time.sleep(1)
+    t_aretomo_log = open(input['OutDir']+'/t_aretomo.log', 'w')
+
     for cmd in cmd_list:
-        print(f" => Running command: {cmd}")
+        print(f" => Running command: {cmd} \n\n The output of Aretomo can be found in the {input['OutDir']}/t_aretomo.log file. Please wait..." )
         p=subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-        (output, err) = p.communicate()
-        p_status = p.wait()
-        #for line in p.stdout:
-        #    sys.stdout.write(line.decode("utf-8"))
-            #print(line)
+        # Read and print the output while the command is running
+        while True:
+            # Read the next line from the output
+            output = p.stdout.readline()
+            # Check if the process has completed
+            if p.poll() is not None and output == b'': break
+            # Print the output to the console
+            #print(output.decode().strip())
+            # Write the output to the file
+            t_aretomo_log.write(output.decode())
+    t_aretomo_log.close()
     os.chdir(cwd)
     print(f" => Returning to {cwd} directory")
 
