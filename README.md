@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/265387704.svg)](https://zenodo.org/badge/latestdoi/265387704)
+
 # Tools for cryo-EM data processing
 
 ## Aberration-free image shift (AFIS) compensation for the EPU data
