@@ -5,5 +5,10 @@ authors:
   given-names: "Pavel"
   orcid: "https://orcid.org/0000-0002-6353-6895"
 title: "CryoEM tools"
-date-released: 2020-05-20
+version: 0.0.1
+doi: 10.5281/zenodo.8187481
+date-released: 2023-07-26
 url: "https://github.com/afanasyevp/cryoem_tools"
+
+
+
