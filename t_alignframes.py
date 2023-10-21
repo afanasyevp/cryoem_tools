@@ -13,9 +13,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
 prog='t_alignframes.py'
-ver=230419
+ver=231021
 underline=("="*70)+("="*(len(prog)+2))
- 
+
 import os
 import sys
 import argparse
@@ -43,11 +43,12 @@ def create_aliframes_command(args_dict):
         cmd=F"{filtered_dict['software']}  -vary {filtered_dict['vary']} -bin {filtered_dict['bin']} -path {filtered_dict['framespath'] }"
     else:
         cmd=F"{filtered_dict['software']}  -vary {filtered_dict['vary']} -bin {filtered_dict['bin']}  -gain {filtered_dict['gain']} -path {filtered_dict['framespath'] }"
-    
+
     #check for gpu
     if 'gpu' in filtered_dict:
         cmd += F" -gpu { filtered_dict['gpu']} "
-    #print("cmd", cmd)
+
+    print("cmd", cmd)
 
     return cmd
 
@@ -112,7 +113,7 @@ def main(input):
 if __name__== '__main__':
     output_text='''
 =================================== %s ===================================
-batch processing for the movie alignments: for now, only aliframes (IMOD) 
+batch processing for the movie alignments: for now, only aliframes (IMOD)
 implemented. All arguments should be space separated.
 
 [version %s]
@@ -146,7 +147,7 @@ https://github.com/afanasyevp/cryoem_tools \n%s''' % (prog, ver, underline)
     if not args.outdir:
         print(" \n => ERROR! No input provided! Please find usage instruction above or run: t_alignframes.py --help")
         sys.exit()
-    
+
     input=vars(args)
     # Check arguments and modify
     #print("before", input)
@@ -172,10 +173,8 @@ https://github.com/afanasyevp/cryoem_tools \n%s''' % (prog, ver, underline)
     else:
         print("\n => WARNING! No gain file has been provided. No gain normalisation will be applied.")
     input['bin']=argparse_list_to_str_commas(args.bin)
-    input['gpu']=argparse_list_to_str_commas(args.gpu)
+    if args.gpu: input['gpu']=argparse_list_to_str_commas(args.gpu)
 
-    
-    #print("after", input)
     print(f"\n\n Input parameters: ")
     for key, value in input.items():
         print(f"  --{key}  {value}")
@@ -183,4 +182,3 @@ https://github.com/afanasyevp/cryoem_tools \n%s''' % (prog, ver, underline)
     time.sleep(1)
     main(input)
     print("\n => Program %s (version %s) completed"%(prog, ver))
-
