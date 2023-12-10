@@ -239,7 +239,7 @@ class Dataset(I_O):
         In the given mdoc_abspath finds unfinished targets to process.
         """
         list_all = glob.glob(
-            self.options.mdocpath + "/*" + self.options.mdocsuffix, recursive=True
+            self.options.mdocpath + "/*" + self.options.mdocsuffix, recursive=False
         )
         list_done = glob.glob(self.options.outdir + "/*" + self.options.alifrsuffix)
         if len(list_all) == 0:
@@ -329,7 +329,6 @@ class TS(Dataset):
             + "/"
             + self.get_filename(self.mdocfile, self.options.mdocsuffix)
             + self.options.alifrsuffix
-            + ".mrc"
         )
 
         filtered_options = {
