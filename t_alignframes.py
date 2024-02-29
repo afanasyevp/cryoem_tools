@@ -24,24 +24,55 @@ import shutil
 import time
 
 PROG = "t_alignframes.py"
-VER = 231210
+VER = 231212
 UNDERLINE = ("=" * 70) + ("=" * (len(PROG) + 2))  # line for the output
 
 
 class I_O:
     def __init__(self, options):
-        self.software = options.software
+        self.outdir = options.outdir
         self.framespath = options.framespath
         self.mdocpath = options.mdocpath
-        self.outdir = options.outdir
-        self.alifrsuffix = options.alifrsuffix
         self.mdocsuffix = options.mdocsuffix
         self.log = options.log
         self.gpu = options.gpu
-        self.pixel = options.pixel
-        self.binning = options.binning
         self.gain = options.gain
-        self.vary = options.vary
+        self.dark = options.dark
+        self.defect = options.defect
+        if options.software == "alignframes":
+            self.binning = options.binning
+            self.alifrsuffix = options.alifrsuffix
+            self.pixel = options.pixel
+            self.vary = options.vary
+            @property
+            def binning(self):
+                return self._binning
+
+            @binning.setter
+            def binning(self, binning):
+                if binning:
+                    res = self.list_to_str_commas(binning)
+                self._binning = res
+        #if os.path.basename(options.software) == "alignframes":
+        elif options.software == "motioncorr":
+            self.motioncorr_suffix = options.motioncorrsuffix
+            self.Patch = options.Patch
+            self.RotGain = options.RotGain
+            self.FlipGain = options.FlipGain
+            self.Iter = options.Iter
+            self.Tol = options.Tol
+            self.SplitSum = options.SplitSum
+            self.kV = options.kV
+            self.PixSize = options.PixSize
+            self.FmDose = options.FmDose
+            self.Bft = options.Bft
+            self.GpuMemUsage = options.GpuMemUsage
+            self.FtBin = options.FtBin
+            self.LogDir = options.LogDir
+            self.OutStar = options.OutStar
+            self.OutStack = options.OutStack
+            self.Crop = options.Crop
+        self.software = options.software
 
     @property
     def software(self):
@@ -49,14 +80,14 @@ class I_O:
 
     @software.setter
     def software(self, software):
-        if software == "motioncorr":
-            sys.exit("Function is not implemented yet")
+        #if software == "motioncorr":
+        #    sys.exit("Function is not implemented yet")
         software_found = shutil.which(software)
         if software_found:
             print(f"\n  Using {software_found} program to align frames")
         else:
             sys.exit(
-                f" => \n ERRROR! {software} is not found! Check if it is sourced! "
+                f"\n => ERRROR! {software} is not found! Check if it is sourced! "
             )
         self._software = software_found
         return self._software
@@ -107,6 +138,7 @@ class I_O:
             self._framespath = self.fix_path(framespath)
         else:
             sys.exit(f" => ERROR! {framespath} folder does not exist!")
+        
 
     @property
     def mdocpath(self):
@@ -147,16 +179,43 @@ class I_O:
                 " => WARNING! No gain file has been provided! No gain normalisation will be applied."
             )
         self._gain = gain
+    
+    @property
+    def dark(self):
+        return self._dark
+
+    @dark.setter
+    def dark(self, dark):
+        if dark:
+            if os.path.isfile(dark):
+                dark = self.fix_path(dark)
+            else:
+                print(
+                    f" => WARNING: {dark} file is not found! No dark reference will be applied!"
+                )
+                dark = None
+        #else:
+            #print(
+            #    " => WARNING! No dark reference has been provided! No dark reference will be applied."
+            #)
+            
+        self._dark = dark
 
     @property
-    def binning(self):
-        return self._binning
+    def defect(self):
+        return self._defect
 
-    @binning.setter
-    def binning(self, binning):
-        if binning:
-            res = self.list_to_str_commas(binning)
-        self._binning = res
+    @defect.setter
+    def defect(self, defect):
+        if defect:
+            if os.path.isfile(defect):
+                defect = self.fix_path(defect)
+            else:
+                print(
+                    f" => WARNING: {defect} file is not found! No defect file will be used!"
+                )
+                defect = None
+        self._defect = defect
 
     @property
     def gpu(self):
@@ -278,6 +337,14 @@ class TS(Dataset):
         self.tilts = {}
         self.aliframes_cmd = None
         self.general_info = {}
+        self.movies_tiff = False
+    
+    def movies_tiff(self, movie_tiff):
+        if os.path.
+            self._movies_tiff = True
+
+
+
 
     def fetch_info_from_mdoc(self):
         # print(f"  Fetching info from {self.mdocfile} mdoc file...")
@@ -350,6 +417,40 @@ class TS(Dataset):
         # print( f"\n  aliframes command was generated for {self.mdocfile}: \n {self.aliframes_cmd} ")
         return cmd
 
+    def create_motioncorr_cmd(self):
+        """
+        for args, creates a command template for bash with inputs and outputs
+        """
+        ts_outputname = (
+            self.options.outdir
+            + "/"
+            + self.get_filename(self.mdocfile, self.options.mdocsuffix)
+            + self.options.motioncorrsuffix
+        )
+        motioncorr_temp=I_O.mkdir(self.framespath+"/motioncorr_temp")
+        tilt_outputname=self.framespath
+        filtered_options = {
+            k: v for k, v in vars(self.options).items() if v is not None
+        }
+        del filtered_options["_mdocpath"]
+        del filtered_options["_outdir"]
+        del filtered_options["motioncorrsuffix"]
+        del filtered_options["mdocsuffix"]
+        del filtered_options["log"]
+        filtered_options["path"] = filtered_options.pop("_framespath")
+
+
+
+        
+        cmd = f"{filtered_options.pop('_software')} "
+        cmd += f"-InTiff"
+        cmd += f"-mdoc {self.mdocfile} -output {ts_outputname} "
+        cmd += f"-binning {filtered_options.pop('_binning')} "
+        for key, value in filtered_options.items():
+            cmd += f" -{key} {value} "
+        self.aliframes_cmd = cmd
+        # print( f"\n  aliframes command was generated for {self.mdocfile}: \n {self.aliframes_cmd} ")
+        return cmd
 
 class Tilt(TS):
     def __init__(self, ZValue):
@@ -398,8 +499,12 @@ class Tilt(TS):
 def main():
     output_text = f"""
 =================================== {PROG} ===================================
-\nbatch processing for the movie alignments: for now, only aliframes (IMOD)
-implemented. All arguments should be space separated.
+\nbatch processing for the movie alignments using: 
+ - aliframes (IMOD)
+ - MotionCor2_1.6.3 
+
+ All arguments should be space separated. Run to get a list of arguments:
+{PROG} --help
 
 [version {VER}]
 Written and tested in python3.11
@@ -412,15 +517,22 @@ https://github.com/afanasyevp/cryoem_tools \n{UNDERLINE}"""
     group1 = parser.add_argument_group("Alignframes-specific options")
     group2 = parser.add_argument_group("Motioncorr-specific options")
     add = parser.add_argument
-    add1 = group1.add_argument
-    add2 = group2.add_argument
-    add(
-        "software",
-        choices=["alignframes", "motioncorr"],
-        default="alignframes",
-        help="Software of choise: alignframes or motioncorr (default: alignframes)",
-        metavar="software",
-    )
+    #add1 = group1.add_argument
+    #add2 = group2.add_argument
+    subparsers=parser.add_subparsers(dest="software")
+    alignframes_parser=subparsers.add_parser("alignframes")
+    motioncorr_parser=subparsers.add_parser("motioncorr")
+    add1=alignframes_parser.add_argument
+    add2=motioncorr_parser.add_argument
+
+    # add(
+    #     "software",
+    #     choices=["alignframes", "motioncorr"],
+    #     default="alignframes",
+    #     help="Software of choise: alignframes or motioncorr (default: alignframes)",
+    #     metavar="software",
+    # )
+
     add(
         "--framespath",
         default="./",
@@ -438,12 +550,6 @@ https://github.com/afanasyevp/cryoem_tools \n{UNDERLINE}"""
         "--outdir",
         default="t_aliframes_output",
         help="Output directory name.  (default: t_aliframes_output)",
-        metavar="",
-    )
-    add(
-        "--alifrsuffix",
-        default="_alifr.mrc",
-        help="Suffix of the output files: for stacktilt_01.mrc.mdoc this will mean stacktilt_01_ali.mrc (default: _alifr.mrc)",
         metavar="",
     )
     add(
@@ -469,8 +575,26 @@ https://github.com/afanasyevp/cryoem_tools \n{UNDERLINE}"""
         help="Pixel size. mdoc value will be overwritten (default: None)",
         metavar="",
     )
-
+    add(
+        "--gain", help="Gain file for non-normalised frames (default: None)", metavar=""
+    )
+    add(
+        "--defect", 
+        help="Defect file (default: None)", 
+        metavar="",       
+    )
+    add(
+        "--dark", 
+        help="Dark reference file (default: None)", 
+        metavar="",       
+    )
     # alignframes options
+    add1(
+        "--alifrsuffix",
+        default="_alifr.mrc",
+        help="Suffix of the output files: for stacktilt_01.mrc.mdoc an aligned stack stacktilt_01_alifr.mrc will be created (default: _alifr.mrc)",
+        metavar="",
+    )
     add1(
         "--binning",
         default=["2", "1"],
@@ -479,17 +603,43 @@ https://github.com/afanasyevp/cryoem_tools \n{UNDERLINE}"""
         metavar="",
     )
     add1(
-        "--gain", help="Gain file for non-normalised frames (default: None)", metavar=""
-    )
-    add1(
         "--vary",
         type=float,
         default=0.25,
         help="Vary option in alignframes (default: 0.25)",
         metavar="",
     )
-    args = parser.parse_args()
 
+    #Motioncorr options
+    add2(
+        "--motioncorrsuffix",
+        default="_alimc.mrc",
+        help="Suffix of the output files: for stacktilt_01.mrc.mdoc an aligned stack stacktilt_01_alimc.mrc will be created (default: _alifr.mrc)",
+        metavar="")
+    add2("--Patch", nargs="+", default="5 5", help="Patches on which the local motion is measured (default: 5 5)", metavar="")
+    #add2("--DefectFile", default=None, help="Defect file (default: None)", metavar="")
+    add2("--RotGain", default=0, help="Rotate gain reference: 0 - no rotation; 1 - rotate 90°; 2 - rotate 180°; 3 - rotate 270° (default: 0)",metavar="")
+    add2("--FlipGain", default=0, type=int, help="Flip gain reference: 0 - no flip; 1 - flip upside down; 2 - flip left right (default: 0)", metavar="")
+    add2("--Dark", default=None, help="Subtract dark reference (default: None)", metavar="")
+    add2("--Iter", default=15, type=int, help="Alignment configuration (default: 15)", metavar="")
+    add2("--Tol", default=0.2, type=float, help="Alignment configuration (default: 0.2)", metavar="")
+    add2("--SplitSum", default=0, choices=["0", "1"], help='Use "1" to generate partial sums of odd/even (default=0)', metavar="")
+    add2("--kV", default=300, help="Voltage for dose weighting. Not impemented. (default: 300)", metavar="")
+    add2("--PixSize", default=0, help="Pixel size for dose weighting. Not impemented. (default: 0)", metavar="")
+    add2("--FmDose", default=0, help="Not recommended to change. Dose weighting is not implemented here (default: 0)", metavar="")
+    add2("--Bft", default="500 100", nargs="+", help="two parameters: for global-motion and local-motion (default: 500 100)", metavar="")
+    add2("--GpuMemUsage", default=0.75, help="GPU memory is used to buffer movie frames (default: 0.75)", metavar="")
+    add2("--FtBin", default=1, help="Image binning by Fourier cropping (default: 1)", metavar="")
+    add2("--LogDir", default="./", help="Directory for log files (default: ./)", metavar="")
+    add2("--OutStar", default=0, help="Generate the star file for Relion 4 polishing (default: 0)", metavar="")
+    add2("--OutStack", default="0 1", nargs="+", help="First value: create aligned stack. Second: binning (default: 0 1)", metavar="")
+    add2("--Crop", default="0 0", nargs="+", help="Crop to the given size (default: 0 0)", metavar="")
+    #add2("--UseGpus", default=2, help="", metavar="")
+    #add2("--TiffOrder", default=1, help="", metavar="")
+
+    
+    args = parser.parse_args()
+    print(args)
     print(output_text)
     print(
         f"\n Example: {PROG} alignframes --mdocpath . --framespath . --vary 0.25 --bin 2 1 --outdir ../aligned_TS --gain gain.mrc"
@@ -508,12 +658,16 @@ https://github.com/afanasyevp/cryoem_tools \n{UNDERLINE}"""
 
     for ts in dataset.TSs.values():
         ts.fetch_info_from_mdoc()
-
-    for mdoc, ts in dataset.TSs.items():
-        dataset.cmds[mdoc] = ts.create_aliframes_cmd()
-        # print(f"cmds: {dataset.cmds}")
-
-    i_o.run_cmds(dataset.cmds)
+    if args.software == "alignframes":
+        for mdoc, ts in dataset.TSs.items():
+            dataset.cmds[mdoc] = ts.create_aliframes_cmd()
+    
+        i_o.run_cmds(dataset.cmds)
+    
+    else:
+        for mdoc, ts in dataset.TSs.items():
+            dataset.cmds[mdoc] = ts.create_motioncorr_cmd()
+        
 
     os.chdir(cwd)
     print(f"\n\n  Returning to {cwd} directory")
