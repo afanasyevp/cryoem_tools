@@ -29,7 +29,8 @@ UNDERLINE = ("=" * 70) + ("=" * (len(PROG) + 2))  # line for the output
 
 
 class _HelpAction(argparse._HelpAction):
-    ''' Prints all options for all subparsers in the help 
+    ''' 
+    Prints all options for all subparsers in the help 
     From: https://stackoverflow.com/questions/20094215/argparse-subparser-monolithic-help-output
     '''
     def __call__(self, parser, namespace, values, option_string=None):
@@ -47,54 +48,53 @@ class _HelpAction(argparse._HelpAction):
                 print(subparser.format_help())
         parser.exit()
 
+class help_I_O:
+    ...
+class I_O_motioncorr:
+    def __init__(self, options):
+        self.motioncorr_suffix = options.motioncorrsuffix
+        self.software = options.software
+        self.Patch = options.Patch
+        self.RotGain = options.RotGain
+        self.FlipGain = options.FlipGain
+        self.Iter = options.Iter
+        self.Tol = options.Tol
+        self.SplitSum = options.SplitSum
+        self.kV = options.kV
+        self.PixSize = options.PixSize
+        self.FmDose = options.FmDose
+        self.Bft = options.Bft
+        self.GpuMemUsage = options.GpuMemUsage
+        self.FtBin = options.FtBin
+        self.LogDir = options.LogDir
+        self.OutStar = options.OutStar
+        self.OutStack = options.OutStack
+        self.Crop = options.Crop
 
 class I_O_alignframes:
     def __init__(self, options):
-        self.outdir = options.outdir
         self.framespath = options.framespath
         self.mdocpath = options.mdocpath
+        self.outdir = options.outdir
         self.mdocsuffix = options.mdocsuffix
-        self.log = options.log
+        self.alifrsuffix = options.alifrsuffix 
         self.gpu = options.gpu
+        self.pixel = options.pixel
         self.gain = options.gain
-        self.dark = options.dark
         self.defect = options.defect
-
-        print("options.software: ", options.software)
-        if options.software == "alignframes":
-            self.binning = options.binning
-            self.alifrsuffix = options.alifrsuffix
-            self.pixel = options.pixel
-            self.vary = options.vary
-            @property
-            def binning(self):
-                return self._binning
-
-            @binning.setter
-            def binning(self, binning):
-                if binning:
-                    res = self.list_to_str_commas(binning)
-                self._binning = res
-        #if os.path.basename(options.software) == "alignframes":
-        elif options.software == "motioncorr":
-            self.motioncorr_suffix = options.motioncorrsuffix
-            self.Patch = options.Patch
-            self.RotGain = options.RotGain
-            self.FlipGain = options.FlipGain
-            self.Iter = options.Iter
-            self.Tol = options.Tol
-            self.SplitSum = options.SplitSum
-            self.kV = options.kV
-            self.PixSize = options.PixSize
-            self.FmDose = options.FmDose
-            self.Bft = options.Bft
-            self.GpuMemUsage = options.GpuMemUsage
-            self.FtBin = options.FtBin
-            self.LogDir = options.LogDir
-            self.OutStar = options.OutStar
-            self.OutStack = options.OutStack
-            self.Crop = options.Crop
+        self.dark = options.dark
+        self.vary = options.vary
         self.software = options.software
+
+        @property
+        def binning(self):
+            return self._binning
+
+        @binning.setter
+        def binning(self, binning):
+            if binning:
+                res = self.list_to_str_commas(binning)
+            self._binning = res
 
     @property
     def software(self):
@@ -161,7 +161,6 @@ class I_O_alignframes:
         else:
             sys.exit(f" => ERROR! {framespath} folder does not exist!")
         
-
     @property
     def mdocpath(self):
         return self._mdocpath
@@ -295,7 +294,7 @@ class I_O_alignframes:
                 print(f" {attr}: {value}")
 
 
-class Dataset(I_O):
+class Dataset(I_O_alignframes):
     def __init__(self, options):
         super().__init__(options)
         self.options = options
@@ -540,7 +539,7 @@ def main():
     '''
     # RawDescriptionHelpFormatter as formatter_class= indicates that description and epilog are already correctly formatted and should not be line-wrapped:
     # ArgumentDefaultsHelpFormatter automatically adds information about default values to each of the argument help messages
-    # 
+    # RawTextHelpFormatter maintains whitespace for all sorts of help text, including argument descriptions
     class UltimateHelpFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
         pass
 
@@ -606,10 +605,14 @@ def main():
     print(args)
     cwd = os.getcwd()
     
-    if args.software == "alignframes":
-        i_o = I_O_alignframes(args)
-    else:
-        i_o = I_O_motioncorr(args)
+    args.gpu = "aaa"
+    print(args)
+
+
+    #if args.software == "alignframes":
+    #    i_o = I_O_alignframes(args)
+    #else:
+    #    i_o = I_O_motioncorr(args)
     # # i_o.print_output()
     # os.chdir(i_o.mdocpath)
     # print(f" \n  Working in {i_o.mdocpath} directory")
