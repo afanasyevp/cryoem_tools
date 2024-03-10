@@ -29,8 +29,12 @@ COLOR_MAIN='#4bd1a0'
 CISTEM_FSCFILE_NUM_OF_COLUMNS=7
 
 
-def fraction_of_nyqist(pixel_size, resolution):
-    return 2*pixel_size/resolution
+def fraction_of_nyqist(pixel_size, reverce_frequency):
+    return 2*pixel_size/reverce_frequency
+
+# Later here, I refer to reverce frequency as "res" - (resolution), which is not really a resolution of the map!  
+def reverse_frequency(pixel_size, fraction_of_nyqist):
+    return f"{(2*pixel_size/fraction_of_nyqist):.1f}"
 
 def import_fsc_xml(filename, pix):
     '''
@@ -220,7 +224,7 @@ def import_fsc_cryosparc_txt(filename, pix, box):
 
     return curves
 
-def make_fsc_plots(curves, units):
+def make_fsc_plots(curves, units, pix):
     '''Plots curves based from a list of dictionaries:
     {"curve_name": "fsc_01",
     "fsc": [list_of_fsc_values],
@@ -235,30 +239,42 @@ def make_fsc_plots(curves, units):
     plt.ylabel('FSC', fontweight="bold")
     plt.title('Fourier Shell Correlation', fontweight="bold")
     plt.ylim(top=1)  # adjust the top leaving bottom unchanged
-    plt.ylim(bottom=-0.1)  # adjust the bottom leaving top unchanged
-
+    plt.ylim(bottom=0)  # adjust the bottom leaving top unchanged
     y_formatter = FixedFormatter(["0", "", "0.143", "0.2", "","0.4","", "0.6", "", "0.8", "","1"])
     y_locator = FixedLocator([0, 0.1, 0.143, 0.2, 0.3,  0.4,0.5,  0.6,0.7, 0.8,0.9, 1])
+    
+    plt.xlim(right=1)  # adjust the right leaving left unchanged
+    plt.xlim(left=0)  # adjust the left leaving right unchanged
+    x_tick_values = [i * 0.1 for i in range(11)]
+    x_locator = FixedLocator(x_tick_values)
+ 
+    # 0.143 cut-off
     plt.plot([0, 1], [0.143, 0.143], linewidth=1, color='black', linestyle='dashed')
-    plt.plot([0, 1], [0, 0], linewidth=1, color='black')
     plt.grid(linestyle='-', linewidth=0.5)
-    print(units)
+    
     if units == "frac_of_nq":
         plt.xlabel('Fraction of Nyquist', fontweight="bold")
-        plt.xlim(right=1)  # adjust the right leaving left unchanged
-        plt.xlim(left=0)  # adjust the left leaving right unchanged
         x_formatter = FixedFormatter(["0", "", "0.2", "",  "0.4", "", "0.6", "", "0.8","", "1"])
-        x_locator = FixedLocator([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1])
-        for curve in curves:
-            plt.plot(curve["frac_of_nq"], curve["fsc"], linewidth=2)
+
     elif units == "angstrom":
         plt.xlabel('1/Frequency (1/Å)', fontweight="bold")
-        min_x = min(curve["res"] for curve in curves)
-        max_x = max(curve["res"] for curve in curves)
-        plt.xlim(left=min_x, right=max_x) 
-        x_locator = FixedLocator([min_x, 0, max_x]) 
-        for curve in curves:
-            plt.plot(curve["res"], curve["fsc"], linewidth=2)
+        # max value in the list of dictionaries
+        all_res_values = [res_val for curve in curves for res_val in curve["res"]]
+        
+        max_res = max(all_res_values)
+        min_res = min(all_res_values)
+        #print(reverse_frequency(pix, max_res))
+        x_tick_values[0] = f'{2*pix/0.1:.1f}'
+        x_tick_values[1:]= [reverse_frequency(pix, val) for val in x_tick_values[1:]]
+        x_formatter = FixedFormatter(x_tick_values)
+    
+    
+
+
+    for i, curve in enumerate(curves):    
+        plt.plot(curve["frac_of_nq"], curve["fsc"], linewidth=1, label=curve["curve_name"], color=f'C{i}')
+
+    
 
     
     ax = plt.gca()
@@ -266,7 +282,7 @@ def make_fsc_plots(curves, units):
     ax.yaxis.set_major_formatter(y_formatter)
     ax.xaxis.set_major_locator(x_locator)
     ax.yaxis.set_major_locator(y_locator)
-
+    plt.legend()
     plt.show()
 
    
@@ -306,7 +322,7 @@ def main(args):
                     curves.extend(import_fsc_cryosparc_txt(fsc_file, pix, args.box))
     else: 
         sys.exit(f" => ERROR: {software} is not a standard input")
-    make_fsc_plots(curves, args.units)
+    make_fsc_plots(curves, args.units, pix)
 
     
 if __name__ == '__main__':
@@ -337,19 +353,19 @@ if __name__ == '__main__':
 {UNDERLINE}"""
 
     examples=f"""EXAMPLES:
- relion/cryosparc (.xml files): {PROG} --i postprocess_fsc.xml --pix 1.09
+ relion/cryosparc (.xml files): {PROG} --i postprocess_fsc.xml --pix 1.09 --units angstrom
  cryosparc (.xml files): {PROG} --i JXXX_fsc_iteration_YYY.txt --pix 1.09 --box 420
- cistem (.txt files): {PROG} --i fsc1.txt fsc2.txt fsc3.txt --pix 1.09
-"""
+ cistem (.txt files): {PROG} --i fsc1.txt fsc2.txt fsc3.txt --pix 1.09 --units frac_of_nq
+""" 
     class UltimateHelpFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
         pass
     parser = argparse.ArgumentParser(prog=PROG, formatter_class=UltimateHelpFormatter, description=description, epilog=examples)
     add=parser.add_argument
-    add('--i', nargs="+",  help="Saved FSC table from cisTEM software", metavar="")
-    add('--software', default="relion", choices=["relion", "cistem", "cryosparc"], help="From which software the files were exported (relion/cryosparc/cistem)", metavar="")
+    add('--i', nargs="+",  help="Saved FSC table from cisTEM software")
+    add('--software', default="relion", choices=["relion", "cistem", "cryosparc"], help="Options: relion/cryosparc/cistem | From which software the files were exported", metavar="")
     add('--pix', type=float, required=True, help="Pixel size", metavar="")
     add('--box', type=int, help="Box size for cryosparc .txt files", metavar="")
-    add('--units', choices=["frac_of_nq", "angstrom"], default="frac_of_nq",  help='X-axis as a "Fraction of Nyquist" or "1/Frequency"', metavar="")
+    add('--units', choices=["frac_of_nq", "angstrom"], default="frac_of_nq",  help='Options: angstrom/frac_of_nq | X-axis as a "Fraction of Nyquist" or "1/Frequency"', metavar="")
     args = parser.parse_args()
     print(description)
 
