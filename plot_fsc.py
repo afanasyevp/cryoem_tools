@@ -23,10 +23,11 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import numpy as np
 from scipy.interpolate import interp1d
-from scipy import optimize
+from scipy.optimize import root_scalar
+import numpy as np
 
 PROG = Path(__file__).name
-VER = 20240313
+VER = 20240315
 TOPHALFLINE = "=" * 35 # line for the output
 UNDERLINE = ("=" * 70) + ("=" * (len(PROG) + 2))  # line for the output
 CISTEM_FSCFILE_NUM_OF_COLUMNS = 7
@@ -77,7 +78,11 @@ def import_fsc_xml(filename, pix):
     "fsc"        : [list_of_fsc_values],
     "res"        : [list_of_res_values],
     "frac_of_nq" : [list_of_frac_of_nq_val] 
-    "curve_type"  : "fsc_relion"/"fsc_cryosparc_XXX"/"fsc_cistem"/"fsc_imagic"/"half_bit"/"three_sigma"
+    "curve_type" : "fsc_relion"/"fsc_cryosparc_XXX"/"fsc_cistem"/"fsc_imagic"/"halfbit"/"threesigma"
+    "0.143"      : resolution according to 0.143
+    "halfbit"    : resolution according to halfbit
+    "threesigma" : resolution according to threesigma
+    "label"      : label in the plot
     }
     """
     fsc = []
@@ -95,7 +100,7 @@ def import_fsc_xml(filename, pix):
         res_val = 1 / float(x[0].childNodes[0].nodeValue)
         res.append(res_val)
         frac_of_nq.append(fraction_of_nyqist(pix, res_val))
-    curve = {"curve_name": PurePosixPath(filename).stem, "fsc": fsc, "res": res, "frac_of_nq": frac_of_nq, "curve_type": f"fsc_{software}"}
+    curve = {"curve_name": filename, "fsc": fsc, "res": res, "frac_of_nq": frac_of_nq, "curve_type": f"fsc_{software}", "0.143": None, "halfbit": None, "threesigma": None, "label": PurePosixPath(filename).stem}
     return [curve]
 
 def import_fsc_relion_dat(filename, pix, software="relion"):
@@ -114,12 +119,12 @@ def import_fsc_relion_dat(filename, pix, software="relion"):
             res.append(res_value)
             fsc.append(float(values[1]))
             frac_of_nq.append(fraction_of_nyqist(pix, res_value))
-    return [{"curve_name": filename, "fsc": fsc, "frac_of_nq": frac_of_nq, "res": res,  "curve_type": f"fsc_{software}"}]
+    return [{"curve_name": filename, "fsc": fsc, "frac_of_nq": frac_of_nq, "res": res,  "curve_type": f"fsc_{software}", "0.143": None, "halfbit": None, "threesigma": None, "label": PurePosixPath(filename).stem}]
 
 def import_fsc_imagic_csv(filename, pix):
     '''
     Reads imagic.csv file with 1/2-bit and 3-sigma cut-offs and outputs a list of 3 curves. 
-    Imagic header: "Ring in Fourier Space";"1 / Resolution [1/A]"; "Fourier Shell Correlation"; Half-bit;Sigma
+    Imagic header: "Ring in Fourier Space";"1 / Resolution [1/A]"; "Fourier Shell Correlation"; halfbit;Sigma
     '''
     print(f" => Working on {filename} file\n")
     
@@ -129,7 +134,7 @@ def import_fsc_imagic_csv(filename, pix):
         fsc = [1]
         res = [np.nan]
         frac_of_nq = [0]
-        half_bit = [1]
+        halfbit = [1]
         sigma= [np.nan]
         for line in lines[2:]:
             values = line.split(";")
@@ -137,28 +142,41 @@ def import_fsc_imagic_csv(filename, pix):
             res.append(res_value)
             fsc.append(float(values[2]))
             frac_of_nq.append(fraction_of_nyqist(pix, res_value))
-            half_bit.append(float(values[3]))
+            halfbit.append(float(values[3]))
             if float(values[4]) !=0:
                 sigma.append(float(values[4]))
             else:
                 sigma.append(np.nan)
 
-    curve_fsc = {"curve_name": f"FSC {PurePosixPath(filename).stem}",
+    curve_fsc = {"curve_name": f"FSC {filename}",
                  "fsc": fsc,
                  "res": res,
                  "frac_of_nq": frac_of_nq,
-                 "curve_type": "fsc_imagic"}
-    curve_half_bit = {"curve_name": "Half-bit cut-off",
-                 "fsc": half_bit,
+                 "curve_type": "fsc_imagic",
+                 "0.143": None, 
+                 "halfbit": None,
+                 "threesigma": None,
+                 "label": "FSC "+PurePosixPath(filename).stem}
+    curve_halfbit = {"curve_name": f"halfbit {filename}",
+                 "fsc": halfbit,
                  "res": res,
                  "frac_of_nq": frac_of_nq,
-                 "curve_type": "half_bit"}
-    curve_sigma = {"curve_name": "3-sigma cut-off",
+                 "curve_type": "halfbit",
+                 "0.143": None,
+                 "halfbit": None,
+                 "threesigma": None,
+                 "label": "Half-Bit"}
+    curve_threesigma = {"curve_name": f"threesigma {filename}",
                  "fsc": sigma,
                  "res": res,
                  "frac_of_nq": frac_of_nq,
-                 "curve_type": "three_sigma"}
-    return [curve_fsc, curve_half_bit, curve_sigma]
+                 "curve_type": "threesigma",
+                 "0.143": None,
+                 "halfbit": None,
+                 "threesigma": None,
+                 "label": "3-sigma"
+                 }
+    return [curve_fsc, curve_halfbit, curve_threesigma]
       
 def import_fsc_cistem(filename, pix):
     """
@@ -193,7 +211,7 @@ def import_fsc_cistem(filename, pix):
                             pass
                         else:
                             # write out for #2 and further
-                            curve = {"curve_name": curve_name, "fsc": fsc, "res": res, "frac_of_nq": frac_of_nq, "curve_type": "fsc"}
+                            curve = {"curve_name": f"{filename} Class {class_number}", "fsc": fsc, "res": res, "frac_of_nq": frac_of_nq, "curve_type": "fsc_cistem", "0.143": None, "halfbit": None, "threesigma": None, "label": PurePosixPath(filename).stem+f" Class {class_number}"}
                             curves.append(curve)
                             # delete values for previous curve
                             fsc = []
@@ -211,7 +229,7 @@ def import_fsc_cistem(filename, pix):
                     res.append(res_value)
                     fsc.append(float(values[4]))
                     frac_of_nq.append(fraction_of_nyqist(pix, res_value))
-        curve = {"curve_name": PurePosixPath(filename).stem + f" class {class_number}", "fsc": fsc, "res": res, "frac_of_nq": frac_of_nq, "curve_type": "fsc_cistem"}
+        curve = {"curve_name": f"{filename} Class {class_number}", "fsc": fsc, "res": res, "frac_of_nq": frac_of_nq, "curve_type": "fsc_cistem", "0.143": None, "halfbit": None, "threesigma": None, "label": PurePosixPath(filename).stem+f" Class {class_number}" }
         curves.append(curve)
     return curves
 
@@ -263,19 +281,19 @@ def import_fsc_cryosparc_txt(filename, pix, box):
             fsc_noisesub_true.append(float(values[fsc_noisesub_true_ind]))
             fsc_corrected.append(float(values[fsc_noisesub_ind]))
 
-        curve_nomask={"curve_name": "No mask", "fsc": fsc_nomask, "res": res, "frac_of_nq": frac_of_nq,  "curve_type": "fsc_cryosparc_nomask"}
+        curve_nomask={"curve_name": filename+" nomask", "fsc": fsc_nomask, "res": res, "frac_of_nq": frac_of_nq,  "curve_type": "fsc_cryosparc_nomask", "0.143": None, "halfbit": None, "threesigma": None, "label": "No mask"}
 
-        curve_sphericalmask = {"curve_name": "Spherical mask", "fsc": fsc_sphericalmask, "res": res, "frac_of_nq": frac_of_nq, "curve_type": "fsc_cryosparc_sphericalmask"}
+        curve_sphericalmask = {"curve_name": filename+" sphericalmask", "fsc": fsc_sphericalmask, "res": res, "frac_of_nq": frac_of_nq, "curve_type": "fsc_cryosparc_sphericalmask", "0.143": None, "halfbit": None, "threesigma": None, "label": "Spherical mask"}
 
-        curve_loosemask = {"curve_name": "Loose mask", "fsc": fsc_loosemask, "res": res, "frac_of_nq": frac_of_nq, "curve_type": "fsc_cryosparc_loosemask"}
+        curve_loosemask = {"curve_name": filename+" loosemask", "fsc": fsc_loosemask, "res": res, "frac_of_nq": frac_of_nq, "curve_type": "fsc_cryosparc_loosemask", "0.143": None, "halfbit": None, "threesigma": None, "label": "Loose mask"}
 
-        curve_tightmask = {"curve_name": "Tight mask", "fsc": fsc_tightmask, "res": res, "frac_of_nq": frac_of_nq,  "curve_type": "fsc_cryosparc_tightmask"}
+        curve_tightmask = {"curve_name": filename+" tightmask", "fsc": fsc_tightmask, "res": res, "frac_of_nq": frac_of_nq,  "curve_type": "fsc_cryosparc_tightmask", "0.143": None, "halfbit": None, "threesigma": None, "label": "Tight mask"}
 
         # The function won't return the next two two
-        curve_noisesub_raw = {"curve_name": "noisesub_raw", "fsc": fsc_noisesub_raw, "res": res, "frac_of_nq": frac_of_nq, "curve_type": "fsc_cryosparc_noisesub_raw" } 
-        curve_noisesub_true = {"curve_name": "noisesub_true", "fsc": fsc_noisesub_true, "res": res, "frac_of_nq": frac_of_nq, "curve_type": "fsc_cryosparc_noisesub_true" }
+        curve_noisesub_raw = {"curve_name": filename+" noisesub_raw", "fsc": fsc_noisesub_raw, "res": res, "frac_of_nq": frac_of_nq, "curve_type": "fsc_cryosparc_noisesub_raw", "0.143": None, "halfbit": None, "threesigma": None, "label": "noisesub_raw"} 
+        curve_noisesub_true = {"curve_name": filename+" noisesub_true", "fsc": fsc_noisesub_true, "res": res, "frac_of_nq": frac_of_nq, "curve_type": "fsc_cryosparc_noisesub_true", "0.143": None, "halfbit": None, "threesigma": None, "label": "noisesub_true" }
 
-        curve_corrected = {"curve_name": "Corrected", "fsc": fsc_corrected, "res": res, "frac_of_nq": frac_of_nq, "curve_type": "fsc_cryosparc_noisesub_ind"}
+        curve_corrected = {"curve_name": filename+" noisesub_ind", "fsc": fsc_corrected, "res": res, "frac_of_nq": frac_of_nq, "curve_type": "fsc_cryosparc_noisesub_ind", "0.143": None, "halfbit": None, "threesigma": None, "label": "Corrected" }
         curves = [
             curve_nomask,
             curve_sphericalmask,
@@ -286,12 +304,14 @@ def import_fsc_cryosparc_txt(filename, pix, box):
 
     return curves
 
-def make_fsc_plots(curves, units, pix, resolution):
+def make_fsc_plots(curves, args, threesigma_fsc=None, halfbit_fsc=None):
     """Plots curves from a list of dictionaries:
     """
     if len(curves) == 0:
         sys.exit(" => ERROR in make_plots! No curves found, check your input!")
 
+    units=args.units
+    pix=args.pix
     plt.figure()
     plt.ylabel(Y_LABEL, fontweight=FONTWEIGHT)
     plt.title(PLOT_TITLE, fontweight=FONTWEIGHT)
@@ -302,9 +322,8 @@ def make_fsc_plots(curves, units, pix, resolution):
     x_tick_values = X_TICKS
     x_locator = FixedLocator(x_tick_values)
     
-
     # 0.143 cut-off
-    if units == "frac_of_nq":
+    if units == "nq":
         plt.xlabel(X_LABEL_FRAC_OF_NQ, fontweight=FONTWEIGHT)
         x_formatter = FixedFormatter(X_TICKS_FRAC_OF_NQ)
         
@@ -318,28 +337,13 @@ def make_fsc_plots(curves, units, pix, resolution):
         x_tick_values[1:] = [f"{reverse_frequency(pix, val)}" for val in x_tick_values[1:]]
         x_formatter = FixedFormatter(x_tick_values)
 
-    half_bit_fsc = None
-    three_sigma_fsc = None
-    for curve in curves:
-        if curve["curve_type"] == "half_bit":
-            half_bit_fsc = curve["fsc"]
-        elif curve["curve_type"] == "three_sigma":
-            three_sigma_fsc = curve["fsc"]
-    
     for i, curve in enumerate(curves):
-        custom_plot_command(curve, f"C{i}", args,  halfbit_curve=half_bit_fsc, three_sigma_curve=three_sigma_fsc)
-        # if curve["curve_name"].split()[0] == "FSC":
-        #     # imagic-created FSC curves only
-        #     curve_index=curves.index(curve)
-        #     sigma = curves[curve_index+1]
-        #     half_bit = curves[curve_index+2]
-        #     custom_plot_command(curve, f"C{i}", args, fixed_res=True, halfbit_curve=half_bit, sigma_curve=sigma)
-        # else:
-        #     if curve["curve_type"] == "Half-bit cut-off" or curve["curve_name"] == "3-sigma cut-off":
-        #         custom_plot_command(curve, f"C{i}", args, fixed_res=False, halfbit_curve=None, sigma_curve=None)
-        #     else:
-        #         custom_plot_command(curve, f"C{i}", args, fixed_res=True)
-
+        if args.label:
+            plt.plot(curve["frac_of_nq"], curve["fsc"], linewidth=CURVE_LINEWIDTH, color=f"C{i}", label=curve["label"])
+            plt.legend() 
+        else:
+            plt.plot(curve["frac_of_nq"], curve["fsc"], linewidth=CURVE_LINEWIDTH, color=color)
+       
     if args.no_threshold == False:
         plt.plot([X_RIGHT, X_LEFT], [FIXED_THRESHOLD, FIXED_THRESHOLD], linewidth=FIXED_THRESHOLD_LINEWIDTH, color=FIXED_THRESHOLD_COLOR, linestyle=FIXED_THRESHOLD_LINESTYLE)
         y_formatter = FixedFormatter(Y_TICKS_LABELS_0143)
@@ -351,116 +355,57 @@ def make_fsc_plots(curves, units, pix, resolution):
 
     ax = plt.gca()
     ax.xaxis.set_major_formatter(x_formatter)
-    ax.xaxis.set_major_locator(x_locator)
     ax.yaxis.set_major_formatter(y_formatter)
+    ax.xaxis.set_major_locator(x_locator)
     ax.yaxis.set_major_locator(y_locator)
     plt.axhline(0, color='black', linewidth=0.5)
     plt.show()
-
-def custom_plot_command(curve, color, args, curve_linewidth=CURVE_LINEWIDTH, three_sigma_linewidth=THREE_SIGMA_LINEWIDTH, half_bit_linewidth=HALF_BIT_LINEWIDTH, halfbit_curve=None, three_sigma_curve=None):
-    '''
-    Helper function to accomodate customisation of the plot creation: 
-    - curve labels
-    - resolution/fraction of Nyquist representation in the X-axis 
-    '''
-    
-    if args.label == True:
         
-        
-        
-        if args.resolution:    
-            if args.thresholds_all:
-            
-                if halfbit_curve and sigma_curve: 
-                    resolution_0143 = determine_resolution(curve, args.pix)
-                    resolution_sigma = determine_resolution(curve, args.pix, three_sigma_curve["fsc"])
-                    resolution_halfbit = determine_resolution(curve, args.pix, halfbit_curve["fsc"])
-                    label_text = curve["curve_name"]
-                else:
-                    sys.exit("=> ERROR! No 3-sigma and/or half-bit curve (usually from the imagic.csv file) was parsed to be displayed. Consider running program ")
 
-                #elif curve["curve_name"] != :
-                #    label_text = curve["curve_name"] 
-
-            elif args.no_threshold == False:
-                label_text = curve["curve_name"] +  determine_resolution(curve, args.pix) 
-        else:
-            label_text = curve["curve_name"]
-        plt.plot(curve["frac_of_nq"], curve["fsc"], linewidth=CURVE_LINEWIDTH, color=color, label=label_text)
-        plt.legend() 
-    else:
-        plt.plot(curve["frac_of_nq"], curve["fsc"], linewidth=CURVE_LINEWIDTH, color=color)
-
-
-
-# def determine_resolution(x_curve, y_curve, pix, y_threshold=0.143):
-#     '''
-#     For two lists determining a FSC curve determines resolution based on 0.143 threshold
-#     '''
-#     # Interpolate the y-values of the curve
-#     f_curve = interp1d(x_curve, y_curve, fill_value='extrapolate')
-
-#     # Generate x-values for the threshold curve
-#     x_threshold = np.linspace(min(x_curve), max(x_curve), 1000)
-#     y_threshold_values = np.full_like(x_threshold, y_threshold)
-
-#     # Interpolate the y-values of the threshold curve
-#     f_threshold = interp1d(x_threshold, y_threshold_values, fill_value='extrapolate')
-
-#     # Find the intersection points by finding the x-values where the absolute difference between the interpolated y-values is minimized
-#     intersection_x_values = []
-#     try:
-#         for x in x_curve:
-#             intersection = optimize.root_scalar(lambda x: f_curve(x) - f_threshold(x), bracket=[min(x_curve), max(x_curve)])
-#             if intersection.converged:
-#                 intersection_x_values.append(intersection.root)
-#     except Exception as e:
-#         print(" => ERROR! Error occurred during intersection calculation of resolution estimation:", e)
-#         sys.exit("Consider running without --resolution option")
-
-#     resolution_angstrom = 2*pix/min(intersection_x_values)
-    
-#     return f'{resolution_angstrom:.1f}'
-        
-def determine_resolution(curve, pix, y_threshold=FIXED_THRESHOLD, x_threshold=None, y_threshold_values=None, label=True):
+def determine_resolution(curve, pix, y_threshold=FIXED_THRESHOLD, x_threshold_values=None, y_threshold_values=None, output_as_text=True):
     '''
     For two lists determining a FSC curve determines resolution based on the specified threshold
     '''
     # Interpolate the y-values of the curve
-    if curve["curve_type"] == "three_sigma" or curve["curve_type"] == "half_bit":
+    if curve["curve_type"] == "threesigma" or curve["curve_type"] == "halfbit":
         return ""
     x_curve = curve['frac_of_nq']
     y_curve = curve['fsc']
 
     f_curve = interp1d(x_curve, y_curve, fill_value='extrapolate')
-
+    if x_threshold_values == None:
+        x_threshold_values = np.linspace(min(x_curve), max(x_curve), 1000)
     # If the threshold curve is not provided, generate it
-    if x_threshold is None or y_threshold_values is None:
-        x_threshold = np.linspace(min(x_curve), max(x_curve), 1000)
-        y_threshold_values = np.full_like(x_threshold, y_threshold)
-
-    # Interpolate the y-values of the threshold curve
-    f_threshold = interp1d(x_threshold, y_threshold_values, fill_value='extrapolate')
-
-    # Find the intersection points by finding the x-values where the absolute difference between the interpolated y-values is minimized
-    intersection_x_values = []
-    try:
-        for x in x_curve:
-            intersection = optimize.root_scalar(lambda x: f_curve(x) - f_threshold(x), bracket=[min(x_curve), max(x_curve)])
-            if intersection.converged:
-                intersection_x_values.append(intersection.root)
-    except Exception as e:
-        print(" => ERROR! Error occurred during intersection calculation of resolution estimation:", e)
-        sys.exit("Consider running without --resolution option")
-
-    resolution_angstrom = 2 * pix / min(intersection_x_values)
+    if y_threshold_values is None:
+        y_threshold_values = np.full_like(x_threshold_values, y_threshold)
     
-    if label:
+    # Interpolate the y-values of the threshold curve
+    f_threshold = interp1d(x_threshold_values, y_threshold_values, fill_value='extrapolate')
+
+    # Calculate the difference between the two curves for all x values
+    intersection_diff = f_curve(x_curve) - f_threshold(x_curve)
+
+    # Find indices where the difference changes sign, indicating a root
+    root_indices = np.where(np.diff(np.sign(intersection_diff)))[0]
+
+    # Iterate over the indices and use root_scalar to refine the roots
+    intersection_x_values = []
+    for idx in root_indices:
+        root = root_scalar(lambda x: f_curve(x) - f_threshold(x), bracket=[x_curve[idx], x_curve[idx+1]])
+        if root.converged:
+            if root.root != 0:
+                intersection_x_values.append(root.root)
+    
+    # Calculate resolution
+    if intersection_x_values:
+        resolution_angstrom = 2 * pix / min(intersection_x_values)
+    else:
+        resolution_angstrom = np.nan
+    
+    if output_as_text:
         return f' ({resolution_angstrom:.1f}Å)'
     else:
         return resolution_angstrom
-
-
 
 def run_file_analysis(filename, args):
     '''Determines the software, which produced the input file, and extracts FSC curve(s) from it
@@ -493,18 +438,68 @@ def main(args):
     """
     Files should be read into a list of dictionaries (curves)
     {"curve_name": "fsc_01",
-    "fsc": [list_of_fsc_values],
-    "res": [list_of_res_values],
- 
-    "frac_of_nq" [list_of_frac_of_nq_val] }
+    "fsc"        : [list_of_fsc_values],
+    "res"        : [list_of_res_values],
+    "frac_of_nq" : [list_of_frac_of_nq_val] 
+    "curve_type" : "fsc_relion"/"fsc_cryosparc_XXX"/"fsc_cistem"/"fsc_imagic"/"halfbit"/"threesigma"
+    "0.143"      : resolution according to 0.143
+    "halfbit"    : resolution according to halfbit
+    "threesigma" : resolution according to threesigma
+    "label"      : label in the plot
+    }
     """
 
     curves = []
-    # extracts fsc curves
+    halfbit_fsc = None
+    threesigma_fsc = None
+    
+    # Extracts fsc curves
     for fsc_file in args.i:
         curves.extend(run_file_analysis(fsc_file, args))
+
+    # Determine resolution for all curves
+    if args.resolution:
+        count_halfbit=0
+        count_threesigma=0
+        resolution_halfbit = None
+        resolution_threesigma= None
+        # Search for halfbit_curve and threesigma_curve in curves
+        for curve in curves:
+            if curve["curve_type"] == "halfbit":
+                halfbit_curve = curve
+                halfbit_fsc = curve["fsc"]
+                count_halfbit += 1
+            elif curve["curve_type"] == "threesigma":
+                threesigma_curve = curve
+                threesigma_fsc = curve["fsc"]
+                count_threesigma += 1
+        if count_halfbit > 1 or count_threesigma >1:
+            print(f" => WARNING! SEVERAL threesigma AND/OR halfbit CURVES DETECTED! Curves corresponding to {curve['curve_name']} will be used!")
+        
+        for curve in curves:        
+            if curve["curve_type"] != "halfbit" and curve["curve_type"] != "threesigma":
+                resolution_0143 = determine_resolution(curve, args.pix, output_as_text=False)
+                curve["0.143"] = resolution_0143
+                if args.thresholds_all:
+                    if 'halfbit_curve' in locals() and 'threesigma_curve' in locals():
+                        resolution_halfbit = determine_resolution(curve, args.pix, x_threshold_values=halfbit_curve["frac_of_nq"], y_threshold_values=halfbit_curve["fsc"], output_as_text=False)
+                        resolution_threesigma = determine_resolution(curve, args.pix, x_threshold_values=threesigma_curve["frac_of_nq"], y_threshold_values=threesigma_curve["fsc"], output_as_text=False)
+                        curve["threesigma"] = resolution_threesigma
+                        curve["halfbit"] = resolution_halfbit
+                        curve["label"] += f" ({resolution_0143:.1f}Å by 0.143)"
+                    else:
+                        sys.exit(" => ERROR! No half-bit and/or 3-sigma curve detected! Consider running without --thresholds_all option")
+                elif not args.no_threshold:
+                    curve["label"] += f" ({resolution_0143:.1f}Å)"
+
+            elif curve["curve_type"] == "threesigma" and len(curves) <= 3 and args.thresholds_all:
+                curve["threesigma"] = resolution_threesigma
+                curve["label"] += f" ({resolution_threesigma:.1f}Å)"
+            elif curve["curve_type"] == "halfbit" and len(curves) <= 3 and args.thresholds_all:
+                curve["halfbit"] = resolution_halfbit
+                curve["label"] += f" ({resolution_halfbit:.1f}Å)"
     # plots them
-    make_fsc_plots(curves, args.units, args.pix, args.resolution)
+    make_fsc_plots(curves, args, threesigma_fsc=threesigma_fsc, halfbit_fsc=halfbit_fsc)
 
 
 if __name__ == "__main__":
@@ -544,7 +539,6 @@ if __name__ == "__main__":
  cistem (.txt files): {PROG} --i fsc1.txt fsc2.txt fsc3.txt --pix 1.09 --units frac_of_nq --resolution --label
 
 """
-
     class UltimateHelpFormatter(
         argparse.RawTextHelpFormatter,
         argparse.ArgumentDefaultsHelpFormatter,
@@ -564,15 +558,15 @@ if __name__ == "__main__":
     add("--box", type=int, help="Box size for cryosparc .txt files", metavar="")
     add(
         "--units",
-        choices=["frac_of_nq", "angstrom"],
+        choices=["nq", "angstrom"],
         default="angstrom",
-        help='Options: angstrom/frac_of_nq | X-axis as a "Fraction of Nyquist" or "1/Frequency"',
+        help='Options: angstrom/nq | X-axis as a "Fraction of Nyquist" or "1/Frequency"',
         metavar="",
     )
     add("--label",  default=False, action="store_true", help="Label on the plot")
     add("--resolution", default=False, action="store_true", help="Show resolution and 0.143 curve on the plot")
     add("--no_threshold", default=False, action="store_true", help="Hide 0.143 threshold on the plot")
-    add("--thresholds_all", default=False, action="store_true", help='Include half-bit and 3-sigma thresholds generated by Imagic "FSC" program (free)')
+    add("--thresholds_all", default=False, action="store_true", help='Include halfbit and 3-sigma thresholds generated by Imagic "FSC" program (free)')
     args = parser.parse_args()
     print(description)
 
@@ -586,5 +580,4 @@ if __name__ == "__main__":
     if len(args.i)>1:
         print(" => WARNING! Multiple files are used! Pixel size and box sizes (for cryosparc .txt files) should be the same!")
     
-
     main(args)
