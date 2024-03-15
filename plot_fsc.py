@@ -15,6 +15,7 @@
 
 import sys
 import os
+import re
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator, FixedFormatter
 from pathlib import Path, PurePosixPath, PurePath
@@ -191,21 +192,29 @@ def import_fsc_cistem(filename, pix):
     curves = []
     curve = {}
     print(f" => Working on {filename} file\n")
+    # pattern for estimated resolution search:
+    pattern = r'Estimated Res = (\d+\.\d+)' 
     with open(filename, "r") as f1:
         lines = f1.readlines()
         fsc = []
         res = []
         frac_of_nq = []
         class_number = 1
+        class_number_res = 1
         for line in lines:
             values = line.split()
             if values:
                 if len(values) != CISTEM_FSCFILE_NUM_OF_COLUMNS:
                     # ignores header of the table. Assumes CISTEM_FSCFILE_NUM_OF_COLUMNS in cistem files like in cisTEM ver 1
                     if values[0] == "Class":
-                        curve_name = (
-                            PurePosixPath(filename).stem + f" class {class_number}"
-                        )
+                        curve["curve_name"] = f"{filename} Class {class_number_res}"
+                        match = re.search(pattern, line)
+                        if match:
+                            estimated_res = match.group(1)
+                            print(f"Estimated resolution of Class {class_number_res} by cisTEM: {estimated_res} Å ")  # Output: 3.01
+                        else:
+                            print(" => Warning! No estimated resolution found in the cisTEM {filename} file")
+                        class_number_res += 1
                         if values[1] == "1":
                             # write out for #1
                             pass
