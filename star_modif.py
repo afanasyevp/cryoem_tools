@@ -17,11 +17,15 @@ import time
 from pathlib import Path, PurePath
 import sys
 import re
-ver = 220716
+import os
+
+PROG = Path(__file__).name
+VER = 20240417
+UNDERLINE = ("=" * 70) + ("=" * (len(PROG) + 2))  # line for the output
 
 def input_analyse(filename):
     # for an input files retuns its type: "particles_star", "micrographs_star", "micrographs_coarsened_star", "micrographs_txt", "unknown"
-    inputType = 'unknown'
+    inputType = 'unknown_inputType'
     if filename[-5:] == ".star":
         MainHeader, OpticsGroupData, OpticsHeader, StarData, StarFileType = star_analyze(
             filename, 10000)
@@ -33,7 +37,7 @@ def input_analyse(filename):
         if StarFileType == "particles":
             inputType = "particles_star"
         elif StarFileType == "micrographs":
-            # print(len(MainHeader))
+            #print(len(MainHeader))
             if len(MainHeader) == 3:
                 random_kv = StarData.popitem()  # randomly picks one key, value
                 # checks of k has a coarsening factor in the micrograph name
@@ -41,8 +45,8 @@ def input_analyse(filename):
                 if match:
                     # print(match.group(2))
                     inputType = "micrographs_coarsened_star"
-                else:
-                    inputType = "micrographs_star"
+            else:
+                inputType = "micrographs_star"
         else:
             print("\n => ERROR! Check your input: unknown star-file type. micrographs.star or particles.star can be used")
     else:
@@ -271,8 +275,8 @@ def check_outputname(filename):
 
 
 def main():
-    output_text = '''
-========================================= star_modif.py ==========================================
+    output_text = f'''
+{("=" * 35)} {PROG} {("=" * 35)}
 star_modif.py modifies the micrographs_ctf.star file or particles.star file by 
 exctracting/excluding micrographs (for now micrographs only) by performing search on the stem of
 the micrograph name
@@ -284,15 +288,14 @@ Note:
  - Modify the first line of the script to change the location of the python execultable to 
 the installed Anaconda's python 
 
-[version %s]
+{VER}
 
 Example: star_modif.py --i particles.star --o particles_new.star --exclude micrographs.star
 
 Written and tested in python3.8.5
 Pavel Afanasyev
 https://github.com/afanasyevp/cryoem_tools/
-==================================================================================================
-''' % ver
+ {UNDERLINE}'''
     print(output_text)
     parser = argparse.ArgumentParser(description="")
     add = parser.add_argument
@@ -414,6 +417,7 @@ https://github.com/afanasyevp/cryoem_tools/
         list_to_exclude = []
         for argExcl in args.exclude:
             inputType = input_analyse(argExcl)
+            #print(f"inputType: {inputType}")
             if inputType == "micrographs_coarsened_star":
                 list_to_exclude = list_to_exclude + \
                     export_from_coarsened_file(argExcl)
