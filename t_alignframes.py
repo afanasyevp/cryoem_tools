@@ -341,7 +341,7 @@ class TS(Dataset):
         del filtered_options["log"]
         filtered_options["path"] = filtered_options.pop("_framespath")
         filtered_options["gain"] = filtered_options.pop("_gain")
-        filtered_options["gain"] = filtered_options.pop("_gpu")
+        filtered_options["gpu"] = filtered_options.pop("_gpu")
         cmd = f"{filtered_options.pop('_software')} "
         cmd += f"-mdoc {self.mdocfile} -output {ts_outputname} "
         cmd += f"-binning {filtered_options.pop('_binning')} "
