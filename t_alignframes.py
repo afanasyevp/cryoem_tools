@@ -24,7 +24,7 @@ import shutil
 import time
 
 PROG = "t_alignframes.py"
-VER = 240426
+VER = 240506
 UNDERLINE = ("=" * 70) + ("=" * (len(PROG) + 2))  # line for the output
 
 
@@ -341,7 +341,7 @@ class TS(Dataset):
         del filtered_options["log"]
         filtered_options["path"] = filtered_options.pop("_framespath")
         filtered_options["gain"] = filtered_options.pop("_gain")
-
+        filtered_options["gain"] = filtered_options.pop("_gpu")
         cmd = f"{filtered_options.pop('_software')} "
         cmd += f"-mdoc {self.mdocfile} -output {ts_outputname} "
         cmd += f"-binning {filtered_options.pop('_binning')} "
@@ -349,7 +349,8 @@ class TS(Dataset):
         for key, value in filtered_options.items():
             cmd += f" -{key} {value} "
         self.aliframes_cmd = cmd
-        # print( f"\n  aliframes command was generated for {self.mdocfile}: \n {self.aliframes_cmd} ")
+        #print( f"\n  aliframes command was generated for {self.mdocfile}: \n {self.aliframes_cmd} ")
+        #print(f"cmd: {self.aliframes_cmd}")
         return cmd
 
 
