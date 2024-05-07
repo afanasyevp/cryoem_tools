@@ -12,7 +12,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # -*- coding: utf-8 -*-
 
-ver=230430
+ver=240507
 prog='t_aretomo.py'
 underline=("="*70)+("="*(len(prog)+2))
 
@@ -43,7 +43,10 @@ def find_executable(pattern):
         if len(candidate)>0: executables.add(candidate)
         if not line: break
     #print("executables: ", executables)
-    executables.remove(shutil.which("t_aretomo.py"))
+    try:
+        executables.remove(shutil.which("t_aretomo.py"))
+    except KeyError:
+        pass
     if len(executables) == 0:
         print(f" => {pattern} software was not found!")
         sys.exit(1)
@@ -57,6 +60,7 @@ def find_executable(pattern):
             print(f" => ERROR!! {pattern} software was not found!")
             sys.exit(1)
         else:
+            #print(list(executables)[0])
             return list(executables)[0]
 
 
@@ -201,7 +205,7 @@ https://github.com/afanasyevp/cryoem_tools\n%s''' % (prog, ver,underline)
     # to add:
     #add('--log', default=True, action='store_true', help=F'Create {prog}.log file')
     add('--InDir', default="./", help="Default: ./ | Path to the folder with your TS files.")
-    add('--Software', default="aretomo", help="Default: aretomo | Software of choise")
+    add('--Software', default="AreTomo2", help="Default: AreTomo2 | Software of choise")
     add('--OutDir', default="./aretomo", help="Default: ./ | Output directory name.")
     add('--InSuffix', default="_ali.mrc", help="Default: _ali.mrc | Suffix of the input files to search for: ts01_ali.mrc will be searching for *_ali.mrc")
     add('--OutSuffix', default="_rec.mrc", help="Default: _rec.mrc | Suffix of the output files to search for: ts01_ali.mrc will be searching for *_ali.mrc")
@@ -238,7 +242,7 @@ https://github.com/afanasyevp/cryoem_tools\n%s''' % (prog, ver,underline)
     args = parser.parse_args()
     print(output_text)
     #parser.print_help()
-    print(f"\n Example: {prog} --Software aretomo --InDir ./ --OutDir ./aretomo  --InSuffix _ali.mrc --OutSuffix _rec.mrc --AngFileDir ./ --AngFileSuffix _tlt.txt --PixSize 2.678 --Kv 300 --Cs 2.7 --ImgDose 3.4 --OutBin 4 --VolZ 1600 --Patch 5 4 --Gpu 0 ")
+    print(f"\n Example: {prog} --Software AreTomo2 --InDir ./ --OutDir ./aretomo  --InSuffix _ali.mrc --OutSuffix _rec.mrc --AngFileDir ./ --AngFileSuffix _tlt.txt --PixSize 2.678 --Kv 300 --Cs 2.7 --ImgDose 3.4 --OutBin 4 --VolZ 1600 --Patch 5 4 --Gpu 0 ")
     cwd=os.getcwd()
 
     input=vars(args)
