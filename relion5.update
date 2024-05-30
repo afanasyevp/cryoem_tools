@@ -1,0 +1,56 @@
+#!/bin/bash
+echo " => exporting environmental variables"
+export PATH=/scopem/lib/cuda-12.3/bin:$PATH
+export LD_LIBRARY_PATH=/scopem/lib/cuda-12.3/lib64/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/$HOME/software/openmpi-5.0.2/lib/:$LD_LIBRARY_PATH
+export PATH=/$HOME/software/openmpi-5.0.2/bin:$PATH
+
+echo " => running command: sudo apt install cmake git build-essential mpi-default-bin mpi-default-dev libfftw3-dev libtiff-dev libpng-dev ghostscript libxft-dev"
+sudo apt install cmake git build-essential mpi-default-bin mpi-default-dev libfftw3-dev libtiff-dev libpng-dev ghostscript libxft-dev
+
+echo " => running command: rm -rf /home/krios2/software/relion "
+sudo rm -rf /home/krios2/software/relion
+
+echo " => running command: rm -rf /home/krios2/software/anaconda3_20240214/envs/relion*"
+rm -rf /home/krios2/software/anaconda3_20240214/envs/relion*
+
+echo " => running command: rm -rf /scopem/prog/relion5/$( date '+%F')_relion5/ "
+rm -rf /scopem/prog/relion5/$( date '+%F')_relion5/
+
+echo " => running command: git clone https://github.com/3dem/relion.git"
+git clone https://github.com/3dem/relion.git
+
+echo " => running command: cd relion"
+cd relion
+
+echo " => running command: git checkout ver5.0"
+git checkout ver5.0
+
+echo " => running command: git pull"
+git pull
+
+echo " => running command: source /home/krios2/setup/anaconda.setup"
+source /home/krios2/setup/anaconda.setup
+
+
+echo " => running command: conda env create -f environment.yml"
+conda env create -f environment.yml
+
+echo " => running command: sudo mkdir /scopem/prog/relion5/$( date '+%F')_relion5/"
+sudo mkdir /scopem/prog/relion5/$( date '+%F')_relion5/
+
+echo " => running command: cd build"
+cd build
+
+echo " => running command: sudo cmake -DTORCH_HOME_PATH=/scopem/prog/relion5/torch .."
+sudo cmake -DCMAKE_INSTALL_PREFIX=/scopem/prog/relion5/$( date '+%F')_relion5 -DTORCH_HOME_PATH=/scopem/prog/relion5/torch ..
+
+
+echo " => running command: make -j 12"
+make -j 12
+echo " => running command: make install"
+make install
+
+sudo rsync -avP /home/krios2/software/relion/build/bin/ /scopem/prog/relion5/$( date '+%F')_relion5/
+sudo chmod 755 /scopem/prog/relion5/$( date '+%F')_relion5/*
+sudo chown -R krios2:krios2 /scopem/prog/relion5/$( date '+%F')_relion5/
