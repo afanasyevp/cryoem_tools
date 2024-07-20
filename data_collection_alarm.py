@@ -122,16 +122,16 @@ def email_text(message_type, start, when_sent, folder, time_int, mov_number, vol
     running_left = round((die_time*24*60*60-(seconds-start))/3600, 2)
     message = f"\nThis automatic email is sent to inform you about the "
     if message_type == "Start":
-        message += f'START of the data collection monitor on {when_sent}. \n\nIf there are no new files appearing in the {folder} directory within {time_int} minutes, you will be notified by another email. The script will be terminated in {running_left} hours \n.'
+        message += f'START of the data collection monitor on {when_sent}. \n\nIf there are no new files appearing in the {folder} directory within {round(time_int/60)} minutes, you will be notified by another email. The script will be terminated in {running_left} hours \n.'
         subject = "STARTED data colection monitor [do not reply please]"
     elif message_type == "Error":
-        message += f'POTENTIAL ERROR IN THE DATA COLLECTION occured on {when_sent}. \n\nNo changes in the volume size has been registered in the last {time_int} minutes. \n You will be notified by another email about the data colection progress only if the data collection continues. The script will be terminated in {running_left} hours. \n'
+        message += f'POTENTIAL ERROR IN THE DATA COLLECTION occured on {when_sent}. \n\nNo changes in the volume size has been registered in the last {round(time_int/60)} minutes. \n You will be notified by another email about the data colection progress only if the data collection continues. The script will be terminated in {running_left} hours. \n'
         subject = 'ERROR in data collection [do not reply please]'
     elif message_type == "OK":
-        message += f'PROGRESS in the data collection on {when_sent}. \n\nIf there are no new files appearing in the directory within {time_int} minutes, you will be notified by another email. The script will be terminated in {running_left} hours. \n'
+        message += f'PROGRESS in the data collection on {when_sent}. \n\nIf there are no new files appearing in the directory within {round(time_int/60)} minutes, you will be notified by another email. The script will be terminated in {running_left} hours. \n'
         subject = "OK data collection [do not reply please]"
     elif message_type == "Stop":
-        message += f'POTENTIAL ERROR IN THE DATA COLLECTION occured on {when_sent}. \n\nNo changes in the volume size has been registered in the last {time_int} minutes. The data_collection_alarm.py script will be terminated now. To continue monitoring the process after data collection errors please use --okreport option in data_collection_alarm.py script.  \n'
+        message += f'POTENTIAL ERROR IN THE DATA COLLECTION occured on {when_sent}. \n\nNo changes in the volume size has been registered in the last {round(time_int/60)} minutes. The data_collection_alarm.py script will be terminated now. To continue monitoring the process after data collection errors please use --okreport option in data_collection_alarm.py script.  \n'
         subject = "ERROR in data collection FINAL email. [do not reply please]"
     elif message_type == "Finish":
         message += f'TERMINATION of the data collection monitor on {when_sent}. \n\n This happpened after {die_time} day(s) since the beginnig of the monitor of the data collection. To continue monitoring the process, please re-run the data_collection_alarm.py script and consideer using different --die option.\n'
