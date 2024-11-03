@@ -43,7 +43,7 @@ def main(args):
             suffix_out=args.outsuff,
         )
         ctffind = Helper_ctffind5(args, targets)
-        # ctffind_cmds=ctffind.create_cmds()
+        ctffind_cmds=ctffind.create_cmds()
     else:
         targets = inputs.find_targets(
             path_in=args.path_in,
@@ -53,8 +53,8 @@ def main(args):
         )
     time.sleep(2)
 
-    # cmds=Helper_commands(args, ctffind_cmds)
-    # run_cmds = cmds.run_cmds()
+    cmds=Helper_commands(args, ctffind_cmds)
+    run_cmds = cmds.run_cmds()
 
 
 if __name__ == "__main__":
