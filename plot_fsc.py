@@ -28,7 +28,7 @@ from scipy.optimize import root_scalar
 import numpy as np
 
 PROG = Path(__file__).name
-VER = 20240315
+VER = 20240321
 TOPHALFLINE = "=" * 35  # line for the output
 UNDERLINE = ("=" * 70) + ("=" * (len(PROG) + 2))  # line for the output
 CISTEM_FSCFILE_NUM_OF_COLUMNS = 7
@@ -75,378 +75,269 @@ Y_TICKS_LABELS_0143 = [
 Y_BOTTOM = -0.1
 Y_TOP = 1
 
+class Curve:
+    def __init__(self, name, pix, fsc=None, res=None, frac_of_nq=None, curve_type=None, fixed_0143=None, halfbit=None, threesigma=None, label=None):
+        self.name = name
+        self.pix = pix
+        self.fsc = fsc
+        self.res = res # reverse resolution
+        self.frac_of_nq = frac_of_nq
+        self.curve_type = curve_type
+        self.fixed_0143 = fixed_0143
+        self.halfbit = halfbit
+        self.threesigma = threesigma
+        self.label = label
 
-def fraction_of_nyqist(pixel_size, reverce_frequency):
-    return 2 * pixel_size / reverce_frequency
+    @property
+    def frac_of_nq(self):
+        return self._frac_of_nq
 
-
-# Later here, I refer to reverce frequency as "res" - (resolution), which is not really a resolution of the map!
-def reverse_frequency(pixel_size, fraction_of_nyqist):
-    return f"{(2*pixel_size/fraction_of_nyqist):.1f}"
-
-
-def import_fsc_xml(filename, pix):
-    """
-    Reads a standard .xml files of FSC (EMDB format) and returns a single dictionary of FSC values for building the curve
-
-    For a single-curve cistem file outputs a fsc dictionary:
-    {"curve_name": "fsc_01",
-    "fsc"        : [list_of_fsc_values],
-    "res"        : [list_of_res_values],
-    "frac_of_nq" : [list_of_frac_of_nq_val]
-    "curve_type" : "fsc_relion"/"fsc_cryosparc_XXX"/"fsc_cistem"/"fsc_imagic"/"halfbit"/"threesigma"
-    "0.143"      : resolution according to 0.143
-    "halfbit"    : resolution according to halfbit
-    "threesigma" : resolution according to threesigma
-    "label"      : label in the plot
-    }
-    """
-    fsc = []
-    res = []
-    frac_of_nq = []
-    xmldata = minidom.parse(filename)
-    fsc_items_list = xmldata.getElementsByTagName("coordinate")
-    software = (
-        xmldata.getElementsByTagName("fsc")[0].getAttribute("title").split()[0].lower()
-    )
-    print(f" => Working on {software} data in {filename} file\n")
-    curve = {}
-    for i in fsc_items_list:
-        x = i.getElementsByTagName("x")
-        y = i.getElementsByTagName("y")
-        fsc.append(float(y[0].childNodes[0].nodeValue))
-        res_val = 1 / float(x[0].childNodes[0].nodeValue)
-        res.append(res_val)
-        frac_of_nq.append(fraction_of_nyqist(pix, res_val))
-    curve = {
-        "curve_name": filename,
-        "fsc": fsc,
-        "res": res,
-        "frac_of_nq": frac_of_nq,
-        "curve_type": f"fsc_{software}",
-        "0.143": None,
-        "halfbit": None,
-        "threesigma": None,
-        "label": PurePosixPath(filename).stem,
-    }
-    return [curve]
-
-
-def import_fsc_relion_dat(filename, pix, software="relion"):
-    """
-    For a single-curve relion .dat file outputs a fsc dictionary like in import_fsc_xml
-    """
-    print(f" => Working on {filename} file\n")
-    with open(filename, "r") as f1:
-        lines = f1.readlines()
-        fsc = []
-        res = []
-        frac_of_nq = []
-        for line in lines:
-            values = line.split()
-            res_value = 1 / float(values[0])
-            res.append(res_value)
-            fsc.append(float(values[1]))
-            frac_of_nq.append(fraction_of_nyqist(pix, res_value))
-    return [
-        {
-            "curve_name": filename,
-            "fsc": fsc,
-            "frac_of_nq": frac_of_nq,
-            "res": res,
-            "curve_type": f"fsc_{software}",
-            "0.143": None,
-            "halfbit": None,
-            "threesigma": None,
-            "label": PurePosixPath(filename).stem,
-        }
-    ]
-
-
-def import_fsc_imagic_csv(filename, pix):
-    """
-    Reads imagic.csv file with 1/2-bit and 3-sigma cut-offs and outputs a list of 3 curves.
-    Imagic header: "Ring in Fourier Space";"1 / Resolution [1/A]"; "Fourier Shell Correlation"; halfbit;Sigma
-    """
-    print(f" => Working on {filename} file\n")
-
-    with open(filename, "r") as f:
-        lines = f.readlines()
-        # The first value in the lists below corresponds ro DC
-        fsc = [1]
-        res = [np.nan]
-        frac_of_nq = [0]
-        halfbit = [1]
-        sigma = [np.nan]
-        for line in lines[2:]:
-            values = line.split(";")
-            res_value = 1 / float(values[1])
-            res.append(res_value)
-            fsc.append(float(values[2]))
-            frac_of_nq.append(fraction_of_nyqist(pix, res_value))
-            halfbit.append(float(values[3]))
-            if float(values[4]) != 0:
-                sigma.append(float(values[4]))
+    @frac_of_nq.setter
+    def frac_of_nq(self, frac_of_nq):
+        if not self.res:
+            raise ValueError(f"No resolution values found in {self.name} curve")
+        frac_of_nq=[]
+        for res_val in self.res:
+            if res_val == 0:
+                frac_of_nq.append(0)
             else:
-                sigma.append(np.nan)
+                frac_of_nq.append(2 * self.pix / res_val)
+        self._frac_of_nq=frac_of_nq
 
-    curve_fsc = {
-        "curve_name": f"FSC {filename}",
-        "fsc": fsc,
-        "res": res,
-        "frac_of_nq": frac_of_nq,
-        "curve_type": "fsc_imagic",
-        "0.143": None,
-        "halfbit": None,
-        "threesigma": None,
-        "label": "FSC " + PurePosixPath(filename).stem,
-    }
-    curve_halfbit = {
-        "curve_name": f"halfbit {filename}",
-        "fsc": halfbit,
-        "res": res,
-        "frac_of_nq": frac_of_nq,
-        "curve_type": "halfbit",
-        "0.143": None,
-        "halfbit": None,
-        "threesigma": None,
-        "label": "Half-Bit",
-    }
-    curve_threesigma = {
-        "curve_name": f"threesigma {filename}",
-        "fsc": sigma,
-        "res": res,
-        "frac_of_nq": frac_of_nq,
-        "curve_type": "threesigma",
-        "0.143": None,
-        "halfbit": None,
-        "threesigma": None,
-        "label": "3-sigma",
-    }
-    return [curve_fsc, curve_halfbit, curve_threesigma]
+class FSC_analyser:
+    def __init__(self, pix, box=None, filename=None, software=None, curves=[], **kwargs):
+        self.pix = pix
+        self.box=box
+        self.filename = filename
+        self.software = software
+        self.curves = curves
+    
+    def run_file_analysis(self):
+        """Determines the software, which produced the input file, and extracts FSC curve(s) from it"""
+        if not os.path.exists(self.filename):
+            sys.exit(f" => ERROR! File {self.filename} does not exist")
+        if self.filename[-4:] == ".xml":
+            return import_fsc_xml(self.filename, self.pix)
+        elif self.filename[-4:] == ".dat":
+            return import_fsc_relion_dat(self.filename, self.pix)
+        elif self.filename[-4:] == ".csv":
+            return import_fsc_imagic_csv(self.filename, self.pix)
+        elif self.filename[-4:] == ".txt":
+            with open(self.filename, "r") as f:
+                first_line = f.readline()
+                if first_line.split()[0] == "Class":
+                    return import_fsc_cistem(self.filename, self.pix)
+                elif first_line.split()[0] == "wave_number":
+                    if args.box == None:
+                        sys.exit(
+                            " => ERROR! No --box provided! Please specify your box size for cryosparc {self.filename} file"
+                        )
+                    return import_fsc_cryosparc_txt(self.filename, self.pix, self.box)
+                else:
+                    print(
+                        f" => WARNING! File type in {self.filename} not detected. Considering general 2-column type like in relion.dat files"
+                    )
+        else:
+            print(
+                f" => WARNING! File type in {self.filename} not detected. Considering general 2-column type like in relion.dat files"
+            )
+            return import_fsc_relion_dat(self.filename, self.pix, software="unknown_software")
 
-
-def import_fsc_cistem(filename, pix):
-    """
-    For a cistem file outputs a fsc dictionary like in import_fsc_xml
-    standard cisTEM v1 header:
-    Class 1 - Estimated Res = 3.01 Å (Refinement Limit = 4.00 Å)
-    -------------------------------------------------------------
-
-    Shell | Res.(Å) | Radius |  FSC  | Part. FSC | √Part. SSNR | √Rec. SSNR
-    -----   -------   ------    ---   ----------   -----------   ----------
-    """
-    curves = []
-    curve = {}
-    print(f" => Working on {filename} file\n")
-    # pattern for estimated resolution search:
-    pattern = r"Estimated Res = (\d+\.\d+)"
-    with open(filename, "r") as f1:
-        lines = f1.readlines()
+    def import_fsc_xml(self):
+        """
+        Reads a standard .xml files of FSC (EMDB format) and returns a single dictionary of FSC values for building the curve
+        """
         fsc = []
         res = []
-        frac_of_nq = []
-        class_number = 1
-        class_number_res = 1
-        for line in lines:
-            values = line.split()
-            if values:
-                if len(values) != CISTEM_FSCFILE_NUM_OF_COLUMNS:
-                    # ignores header of the table. Assumes CISTEM_FSCFILE_NUM_OF_COLUMNS in cistem files like in cisTEM ver 1
-                    if values[0] == "Class":
-                        curve["curve_name"] = f"{filename} Class {class_number_res}"
-                        match = re.search(pattern, line)
-                        if match:
-                            estimated_res = match.group(1)
-                            print(
-                                f"Estimated resolution of Class {class_number_res} by cisTEM: {estimated_res} Å "
-                            )  # Output: 3.01
-                        else:
-                            print(
-                                " => Warning! No estimated resolution found in the cisTEM {filename} file"
-                            )
-                        class_number_res += 1
-                        if values[1] == "1":
-                            # write out for #1
-                            pass
-                        else:
-                            # write out for #2 and further
-                            curve = {
-                                "curve_name": f"{filename} Class {class_number}",
-                                "fsc": fsc,
-                                "res": res,
-                                "frac_of_nq": frac_of_nq,
-                                "curve_type": "fsc_cistem",
-                                "0.143": None,
-                                "halfbit": None,
-                                "threesigma": None,
-                                "label": PurePosixPath(filename).stem
-                                + f" Class {class_number}",
-                            }
-                            curves.append(curve)
-                            # delete values for previous curve
-                            fsc = []
-                            res = []
-                            frac_of_nq = []
-                            curve = {}
-                            class_number += 1
-                    else:
-                        continue
-                elif "-" in values[0]:
-                    # ignores ['-----', '-------', '------', '---', '----------', '-----------', '----------']
-                    continue
-                else:
-                    res_value = float(values[1])
-                    res.append(res_value)
-                    fsc.append(float(values[4]))
-                    frac_of_nq.append(fraction_of_nyqist(pix, res_value))
-        curve = {
-            "curve_name": f"{filename} Class {class_number}",
-            "fsc": fsc,
-            "res": res,
-            "frac_of_nq": frac_of_nq,
-            "curve_type": "fsc_cistem",
-            "0.143": None,
-            "halfbit": None,
-            "threesigma": None,
-            "label": PurePosixPath(filename).stem + f" Class {class_number}",
-        }
-        curves.append(curve)
-    return curves
-
-
-def import_fsc_cryosparc_txt(filename, pix, box):
-    """
-    For a single-curve cistem file outputs a fsc dictionary like in import_fsc_xml
-    Cryosparc txt first line: wave_number	fsc_nomask	fsc_sphericalmask	fsc_loosemask	fsc_tightmask	fsc_noisesub_raw	fsc_noisesub_true	fsc_noisesub
-    the last column (fsc_noisesub) is "Corrected FSC"
-    Resolution = (box size * pixel size) / wave number
-    """
-    print(f" => Working on {filename} file\n")
-    wave_number = []
-    res = []
-    frac_of_nq = []
-
-    fsc_nomask = []
-    fsc_sphericalmask = []
-    fsc_loosemask = []
-    fsc_tightmask = []
-    fsc_noisesub_raw = []
-    fsc_noisesub_true = []
-    fsc_corrected = []
-
-    with open(filename, "r") as f:
-        lines = f.readlines()
-        first_line = lines[0].split()
-        wave_number_ind = first_line.index("wave_number")
-        fsc_nomask_ind = first_line.index("fsc_nomask")
-        fsc_sphericalmask_ind = first_line.index("fsc_sphericalmask")
-        fsc_loosemask_ind = first_line.index("fsc_loosemask")
-        fsc_tightmask_ind = first_line.index("fsc_tightmask")
-        fsc_noisesub_raw_ind = first_line.index("fsc_noisesub_raw")
-        fsc_noisesub_true_ind = first_line.index("fsc_noisesub_true")
-        fsc_noisesub_ind = first_line.index("fsc_noisesub")
-        for line in lines[1:]:
-            values = line.split()
-            wave_number.append(float(values[wave_number_ind]))
-            res_val = box * pix / float(values[wave_number_ind])
+        xmldata = minidom.parse(self.filename)
+        fsc_items_list = xmldata.getElementsByTagName("coordinate")
+        self.software = (
+            xmldata.getElementsByTagName("fsc")[0].getAttribute("title").split()[0].lower()
+        )
+        print(f" => Working on {self.software} data in {self.filename} file\n")
+        for i in fsc_items_list:
+            x = i.getElementsByTagName("x")
+            y = i.getElementsByTagName("y")
+            fsc.append(float(y[0].childNodes[0].nodeValue))
+            res_val = 1 / float(x[0].childNodes[0].nodeValue)
             res.append(res_val)
-            frac_of_nq.append(fraction_of_nyqist(pix, res_val))
-            for value in values:
-                if value == "nan" or value == "-inf" or value == "inf":
-                    value = 0
-            fsc_nomask.append(float(values[fsc_nomask_ind]))
-            fsc_sphericalmask.append(float(values[fsc_sphericalmask_ind]))
-            fsc_loosemask.append(float(values[fsc_loosemask_ind]))
-            fsc_tightmask.append(float(values[fsc_tightmask_ind]))
-            fsc_noisesub_raw.append(float(values[fsc_noisesub_raw_ind]))
-            fsc_noisesub_true.append(float(values[fsc_noisesub_true_ind]))
-            fsc_corrected.append(float(values[fsc_noisesub_ind]))
+        return [Curve(self.filename, self.pix, fsc=fsc, res=res, curve_type=f"fsc_{self.software}", label=PurePosixPath(self.filename).stem)]
 
-        curve_nomask = {
-            "curve_name": filename + " nomask",
-            "fsc": fsc_nomask,
-            "res": res,
-            "frac_of_nq": frac_of_nq,
-            "curve_type": "fsc_cryosparc_nomask",
-            "0.143": None,
-            "halfbit": None,
-            "threesigma": None,
-            "label": "No mask",
-        }
 
-        curve_sphericalmask = {
-            "curve_name": filename + " sphericalmask",
-            "fsc": fsc_sphericalmask,
-            "res": res,
-            "frac_of_nq": frac_of_nq,
-            "curve_type": "fsc_cryosparc_sphericalmask",
-            "0.143": None,
-            "halfbit": None,
-            "threesigma": None,
-            "label": "Spherical mask",
-        }
+    def import_fsc_relion_dat(self, software="relion"):
+        """
+        For a single-curve relion .dat file outputs a fsc dictionary like in import_fsc_xml
+        """
+        print(f" => Working on {self.filename} file\n")
+        with open(self.filename, "r") as f1:
+            lines = f1.readlines()
+            fsc = []
+            res = []
+            for line in lines:
+                values = line.split()
+                res_value = 1 / float(values[0])
+                res.append(res_value)
+                fsc.append(float(values[1]))
+        return [Curve(self.filename, self.pix, fsc=fsc, res=res, curve_type=f"fsc_{self.software}", label=PurePosixPath(self.filename).stem)]
 
-        curve_loosemask = {
-            "curve_name": filename + " loosemask",
-            "fsc": fsc_loosemask,
-            "res": res,
-            "frac_of_nq": frac_of_nq,
-            "curve_type": "fsc_cryosparc_loosemask",
-            "0.143": None,
-            "halfbit": None,
-            "threesigma": None,
-            "label": "Loose mask",
-        }
 
-        curve_tightmask = {
-            "curve_name": filename + " tightmask",
-            "fsc": fsc_tightmask,
-            "res": res,
-            "frac_of_nq": frac_of_nq,
-            "curve_type": "fsc_cryosparc_tightmask",
-            "0.143": None,
-            "halfbit": None,
-            "threesigma": None,
-            "label": "Tight mask",
-        }
+    def import_fsc_imagic_csv(self):
+        """
+        Reads imagic.csv file with 1/2-bit and 3-sigma cut-offs and outputs a list of 3 curves.
+        Imagic header: "Ring in Fourier Space";"1 / Resolution [1/A]"; "Fourier Shell Correlation"; halfbit;Sigma
+        """
+        print(f" => Working on {self.filename} file\n")
+
+        with open(self.filename, "r") as f:
+            lines = f.readlines()
+            # The first value in the lists below corresponds ro DC
+            fsc = [1]
+            res = [np.nan]
+            halfbit = [1]
+            threesigma = [np.nan]
+            for line in lines[2:]:
+                values = line.split(";")
+                res_value = 1 / float(values[1])
+                res.append(res_value)
+                fsc.append(float(values[2]))
+                halfbit.append(float(values[3]))
+                if float(values[4]) != 0:
+                    threesigma.append(float(values[4]))
+                else:
+                    threesigma.append(np.nan)
+
+        curve_fsc = Curve(self.filename, self.pix, fsc=fsc, res=res, curve_type="fsc_imagic", label="FSC " + PurePosixPath(self.filename).stem)
+        curve_halfbit = Curve(f"halfbit {self.filename}", self.pix, fsc=halfbit, res=res, curve_type="halfbit", label="Half-Bit") 
+        curve_threesigma = Curve(f"threesigma {self.filename}", self.pix, fsc=threesigma, res=res, curve_type="threesigma", label="3-Sigma")
+        return [curve_fsc, curve_halfbit, curve_threesigma]
+
+
+    def import_fsc_cistem(self):
+        """
+        For a cistem file outputs a fsc dictionary like in import_fsc_xml
+        standard cisTEM v1 header:
+        Class 1 - Estimated Res = 3.01 Å (Refinement Limit = 4.00 Å)
+        -------------------------------------------------------------
+
+        Shell | Res.(Å) | Radius |  FSC  | Part. FSC | √Part. SSNR | √Rec. SSNR
+        -----   -------   ------    ---   ----------   -----------   ----------
+        """
+
+        curves = []
+        print(f" => Working on {self.filename} file\n")
+        # pattern for estimated resolution search:
+        pattern = r"Estimated Res = (\d+\.\d+)"
+        with open(self.filename, "r") as f1:
+            lines = f1.readlines()
+            fsc = []
+            res = []
+            class_number = 1
+            class_number_res = 1
+            for line in lines:
+                values = line.split()
+                if values:
+                    if len(values) != CISTEM_FSCFILE_NUM_OF_COLUMNS:
+                        # ignores header of the table. Assumes CISTEM_FSCFILE_NUM_OF_COLUMNS in cistem files like in cisTEM ver 1
+                        if values[0] == "Class":
+                            curve=Curve(f"{self.filename} Class {class_number_res}")
+                            match = re.search(pattern, line)
+                            if match:
+                                estimated_res = match.group(1)
+                                print(
+                                    f"Estimated resolution of Class {class_number_res} by cisTEM: {estimated_res} Å "
+                                )  # Output: 3.01
+                            else:
+                                print(
+                                    " => Warning! No estimated resolution found in the cisTEM {self.filename} file"
+                                )
+                            class_number_res += 1
+                            if values[1] == "1":
+                                # write out for #1
+                                pass
+                            else:
+                                # write out for #2 and further
+                                curve = Curve(f"{self.filename} Class {class_number_res}", fsc=fsc, res=res, curve_type="fsc_cistem", label=PurePosixPath(self.filename).stem + f" Class {class_number}")
+                                curves.append(curve)
+                                # delete values for previous curve
+                                fsc = []
+                                res = []
+                                frac_of_nq = []
+                                class_number += 1
+                        else:
+                            continue
+                    elif "-" in values[0]:
+                        # ignores ['-----', '-------', '------', '---', '----------', '-----------', '----------']
+                        continue
+                    else:
+                        res_value = float(values[1])
+                        res.append(res_value)
+                        fsc.append(float(values[4]))
+            curve = Curve(f"{self.filename} Class {class_number_res}", self.pix, fsc=fsc, res=res, curve_type="fsc_cistem", label=PurePosixPath(self.filename).stem + f" Class {class_number}")
+            curves.append(curve)
+        return curves
+
+
+    def import_fsc_cryosparc_txt(self):
+        """
+        For a single-curve cistem file outputs a fsc dictionary like in import_fsc_xml
+        Cryosparc txt first line: wave_number	fsc_nomask	fsc_sphericalmask	fsc_loosemask	fsc_tightmask	fsc_noisesub_raw	fsc_noisesub_true	fsc_noisesub
+        the last column (fsc_noisesub) is "Corrected FSC"
+        Resolution = (box size * pixel size) / wave number
+        """
+        print(f" => Working on {self.filename} file\n")
+        wave_number = []
+        res = []
+
+        fsc_nomask = []
+        fsc_sphericalmask = []
+        fsc_loosemask = []
+        fsc_tightmask = []
+        fsc_noisesub_raw = []
+        fsc_noisesub_true = []
+        fsc_corrected = []
+
+        with open(self.filename, "r") as f:
+            lines = f.readlines()
+            first_line = lines[0].split()
+            wave_number_ind = first_line.index("wave_number")
+            fsc_nomask_ind = first_line.index("fsc_nomask")
+            fsc_sphericalmask_ind = first_line.index("fsc_sphericalmask")
+            fsc_loosemask_ind = first_line.index("fsc_loosemask")
+            fsc_tightmask_ind = first_line.index("fsc_tightmask")
+            fsc_noisesub_raw_ind = first_line.index("fsc_noisesub_raw")
+            fsc_noisesub_true_ind = first_line.index("fsc_noisesub_true")
+            fsc_noisesub_ind = first_line.index("fsc_noisesub")
+            for line in lines[1:]:
+                values = line.split()
+                wave_number.append(float(values[wave_number_ind]))
+                res_val = box * pix / float(values[wave_number_ind])
+                res.append(res_val)
+                for value in values:
+                    if value == "nan" or value == "-inf" or value == "inf":
+                        value = 0
+                fsc_nomask.append(float(values[fsc_nomask_ind]))
+                fsc_sphericalmask.append(float(values[fsc_sphericalmask_ind]))
+                fsc_loosemask.append(float(values[fsc_loosemask_ind]))
+                fsc_tightmask.append(float(values[fsc_tightmask_ind]))
+                fsc_noisesub_raw.append(float(values[fsc_noisesub_raw_ind]))
+                fsc_noisesub_true.append(float(values[fsc_noisesub_true_ind]))
+                fsc_corrected.append(float(values[fsc_noisesub_ind]))
+
+        curve_nomask = Curve(self.filename + " nomask", self.pix, fsc=fsc_nomask, res=res, curve_type="fsc_cryosparc_nomask", label="No mask")
+
+        curve_sphericalmask = Curve(self.filename + " sphericalmask", self.pix, fsc=fsc_sphericalmask, res=res, curve_type="fsc_cryosparc_sphericalmask", label="Spherical mask")
+
+        curve_loosemask = Curve(self.filename + " loosemask", self.pix, fsc=fsc_loosemask, res=res, curve_type="fsc_cryosparc_loosemask", label="Loose mask")
+
+        curve_tightmask = Curve(self.filename + " tightmask", self.pix, fsc=fsc_tightmask, res=res, curve_type="fsc_cryosparc_tightmask", label="Tight mask")
 
         # The function won't return the next two two
-        curve_noisesub_raw = {
-            "curve_name": filename + " noisesub_raw",
-            "fsc": fsc_noisesub_raw,
-            "res": res,
-            "frac_of_nq": frac_of_nq,
-            "curve_type": "fsc_cryosparc_noisesub_raw",
-            "0.143": None,
-            "halfbit": None,
-            "threesigma": None,
-            "label": "noisesub_raw",
-        }
-        curve_noisesub_true = {
-            "curve_name": filename + " noisesub_true",
-            "fsc": fsc_noisesub_true,
-            "res": res,
-            "frac_of_nq": frac_of_nq,
-            "curve_type": "fsc_cryosparc_noisesub_true",
-            "0.143": None,
-            "halfbit": None,
-            "threesigma": None,
-            "label": "noisesub_true",
-        }
+        curve_noisesub_raw = Curve(self.filename + " noisesub_raw", self.pix, fsc=fsc_noisesub_raw, res=res, curve_type="fsc_cryosparc_noisesub_raw", label="noisesub_raw")
+        curve_noisesub_true = Curve(self.filename + " noisesub_true", self.pix, fsc=fsc_noisesub_true, res=res, curve_type="fsc_cryosparc_noisesub_true", label="noisesub_true")
 
-        curve_corrected = {
-            "curve_name": filename + " noisesub_ind",
-            "fsc": fsc_corrected,
-            "res": res,
-            "frac_of_nq": frac_of_nq,
-            "curve_type": "fsc_cryosparc_noisesub_ind",
-            "0.143": None,
-            "halfbit": None,
-            "threesigma": None,
-            "label": "Corrected",
-        }
-        curves = [
+        curve_corrected = Curve(self.filename + " noisesub_ind", self.pix, fsc=fsc_corrected, res=res, curve_type="fsc_cryosparc_noisesub_ind", label="Corrected")
+        
+        return [
             curve_nomask,
             curve_sphericalmask,
             curve_loosemask,
@@ -454,16 +345,12 @@ def import_fsc_cryosparc_txt(filename, pix, box):
             curve_corrected,
         ]
 
-    return curves
 
-
-def make_fsc_plots(curves, args, threesigma_fsc=None, halfbit_fsc=None):
+def make_fsc_plots(curves, units, pix, threesigma_fsc=None, halfbit_fsc=None):
     """Plots curves from a list of dictionaries:"""
     if len(curves) == 0:
         sys.exit(" => ERROR in make_plots! No curves found, check your input!")
 
-    units = args.units
-    pix = args.pix
     plt.figure()
     plt.ylabel(Y_LABEL, fontweight=FONTWEIGHT)
     plt.title(PLOT_TITLE, fontweight=FONTWEIGHT)
@@ -487,26 +374,26 @@ def make_fsc_plots(curves, args, threesigma_fsc=None, halfbit_fsc=None):
         # min_res = min(all_res_values)
         x_tick_values[0] = ""
         x_tick_values[1:] = [
-            f"{reverse_frequency(pix, val)}" for val in x_tick_values[1:]
+            f"{(2*pix/val):.1f}" for val in x_tick_values[1:]
         ]
         x_formatter = FixedFormatter(x_tick_values)
 
     for i, curve in enumerate(curves):
         if args.label:
             plt.plot(
-                curve["frac_of_nq"],
-                curve["fsc"],
+                curve.frac_of_nq,
+                curve.fsc,
                 linewidth=CURVE_LINEWIDTH,
                 color=f"C{i}",
-                label=curve["label"],
+                label=curve.label,
             )
             plt.legend()
         else:
             plt.plot(
-                curve["frac_of_nq"],
-                curve["fsc"],
+                curve.frac_of_nq,
+                curve.fsc,
                 linewidth=CURVE_LINEWIDTH,
-                color=color,
+                color=f"C{i}",
             )
 
     if args.no_threshold == False:
@@ -545,10 +432,10 @@ def determine_resolution(
     For two lists determining a FSC curve determines resolution based on the specified threshold
     """
     # Interpolate the y-values of the curve
-    if curve["curve_type"] == "threesigma" or curve["curve_type"] == "halfbit":
+    if curve.curve_type == "threesigma" or curve.curve_type == "halfbit":
         return ""
-    x_curve = curve["frac_of_nq"]
-    y_curve = curve["fsc"]
+    x_curve = curve.frac_of_nq
+    y_curve = curve.fsc
 
     f_curve = interp1d(x_curve, y_curve, fill_value="extrapolate")
     if x_threshold_values == None:
@@ -591,36 +478,6 @@ def determine_resolution(
         return resolution_angstrom
 
 
-def run_file_analysis(filename, args):
-    """Determines the software, which produced the input file, and extracts FSC curve(s) from it"""
-    if not os.path.exists(filename):
-        sys.exit(f" => ERROR! File {filename} does not exist")
-    if filename[-4:] == ".xml":
-        return import_fsc_xml(filename, args.pix)
-    elif filename[-4:] == ".dat":
-        return import_fsc_relion_dat(filename, args.pix)
-    elif filename[-4:] == ".csv":
-        return import_fsc_imagic_csv(filename, args.pix)
-    elif filename[-4:] == ".txt":
-        with open(filename, "r") as f:
-            first_line = f.readline()
-            if first_line.split()[0] == "Class":
-                return import_fsc_cistem(filename, args.pix)
-            elif first_line.split()[0] == "wave_number":
-                if args.box == None:
-                    sys.exit(
-                        " => ERROR! No --box provided! Please specify your box size for cryosparc {filename} file"
-                    )
-                return import_fsc_cryosparc_txt(filename, args.pix, args.box)
-            else:
-                print(
-                    f" => WARNING! File type in {filename} not detected. Considering general 2-column type like in relion.dat files"
-                )
-    else:
-        print(
-            f" => WARNING! File type in {filename} not detected. Considering general 2-column type like in relion.dat files"
-        )
-        return import_fsc_relion_dat(filename, args.pix, software="unknown_software")
 
 
 def main(args):
@@ -644,7 +501,8 @@ def main(args):
 
     # Extracts fsc curves
     for fsc_file in args.i:
-        curves.extend(run_file_analysis(fsc_file, args))
+        FSC_analyser(args.pix, fsc_file)
+        #curves.extend(run_file_analysis(fsc_file, args))
 
     # Determine resolution for all curves
     if args.resolution:
@@ -654,67 +512,67 @@ def main(args):
         resolution_threesigma = None
         # Search for halfbit_curve and threesigma_curve in curves
         for curve in curves:
-            if curve["curve_type"] == "halfbit":
+            if curve.curve_type == "halfbit":
                 halfbit_curve = curve
-                halfbit_fsc = curve["fsc"]
+                halfbit_fsc = curve.fsc
                 count_halfbit += 1
-            elif curve["curve_type"] == "threesigma":
+            elif curve.curve_type == "threesigma":
                 threesigma_curve = curve
-                threesigma_fsc = curve["fsc"]
+                threesigma_fsc = curve.fsc
                 count_threesigma += 1
         if count_halfbit > 1 or count_threesigma > 1:
             print(
-                f" => WARNING! SEVERAL threesigma AND/OR halfbit CURVES DETECTED! Curves corresponding to {curve['curve_name']} will be used!"
+                f" => WARNING! SEVERAL threesigma AND/OR halfbit CURVES DETECTED! Curves corresponding to {curve.curve_name} will be used!"
             )
 
         for curve in curves:
-            if curve["curve_type"] != "halfbit" and curve["curve_type"] != "threesigma":
+            if curve.curve_type != "halfbit" and curve.curve_type != "threesigma":
                 resolution_0143 = determine_resolution(
                     curve, args.pix, output_as_text=False
                 )
-                curve["0.143"] = resolution_0143
+                curve.fixed_0143 = resolution_0143
                 if args.thresholds_all:
                     if "halfbit_curve" in locals() and "threesigma_curve" in locals():
                         resolution_halfbit = determine_resolution(
                             curve,
                             args.pix,
-                            x_threshold_values=halfbit_curve["frac_of_nq"],
-                            y_threshold_values=halfbit_curve["fsc"],
+                            x_threshold_values=halfbit_curve.frac_of_nq,
+                            y_threshold_values=halfbit_curve.fsc,
                             output_as_text=False,
                         )
                         resolution_threesigma = determine_resolution(
                             curve,
                             args.pix,
-                            x_threshold_values=threesigma_curve["frac_of_nq"],
-                            y_threshold_values=threesigma_curve["fsc"],
+                            x_threshold_values=threesigma_curve.frac_of_nq,
+                            y_threshold_values=threesigma_curve.fsc,
                             output_as_text=False,
                         )
-                        curve["threesigma"] = resolution_threesigma
-                        curve["halfbit"] = resolution_halfbit
-                        curve["label"] += f" ({resolution_0143:.1f}Å by 0.143)"
+                        curve.threesigma = resolution_threesigma
+                        curve.halfbit = resolution_halfbit
+                        curve.label += f" ({resolution_0143:.1f}Å by 0.143)"
                     else:
                         sys.exit(
                             " => ERROR! No half-bit and/or 3-sigma curve detected! Consider running without --thresholds_all option"
                         )
                 elif not args.no_threshold:
-                    curve["label"] += f" ({resolution_0143:.1f}Å)"
+                    curve.label += f" ({resolution_0143:.1f}Å)"
 
             elif (
-                curve["curve_type"] == "threesigma"
+                curve.curve_type == "threesigma"
                 and len(curves) <= 3
                 and args.thresholds_all
             ):
-                curve["threesigma"] = resolution_threesigma
-                curve["label"] += f" ({resolution_threesigma:.1f}Å)"
+                curve.threesigma = resolution_threesigma
+                curve.label += f" ({resolution_threesigma:.1f}Å)"
             elif (
-                curve["curve_type"] == "halfbit"
+                curve.curve_type == "halfbit"
                 and len(curves) <= 3
                 and args.thresholds_all
             ):
-                curve["halfbit"] = resolution_halfbit
-                curve["label"] += f" ({resolution_halfbit:.1f}Å)"
+                curve.halfbit = resolution_halfbit
+                curve.label += f" ({resolution_halfbit:.1f}Å)"
     # plots them
-    make_fsc_plots(curves, args, threesigma_fsc=threesigma_fsc, halfbit_fsc=halfbit_fsc)
+    make_fsc_plots(curves, args.units, args.pix, threesigma_fsc=threesigma_fsc, halfbit_fsc=halfbit_fsc)
 
 
 if __name__ == "__main__":
