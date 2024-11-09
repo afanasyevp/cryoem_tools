@@ -25,47 +25,8 @@ from textwrap import fill
 import glob 
 import argparse
 
-VER=20241103
-
-class Helper_Decor:
-    def __init__(self, prog, version=None, description=None, examples=None):
-        """
-        See cryoemt_ctffind.py as an example of use.
-        Note: "examples" must be a list of strings
-        """
-        self.underline_n = 79 # considering formating of textwrap and PIP
-        self.prog  = prog
-        self.version = version
-        self.description = description 
-        self.underline = "="*self.underline_n
-        self.examples = examples
-        if self.examples:
-            self.examples = "\n".join(fill(line, width=self.underline_n) for line in self.examples)
-        if (self.underline_n -len(self.prog)) % 2 == 0:
-            self.halfline1 = "=" * int((self.underline_n - len(self.prog))/2 - 2)
-            self.halfline2 = self.halfline1
-        else:
-            self.halfline1 = "=" * int((self.underline_n - len(self.prog) - 1)/2 - 1)
-            self.halfline2 =  self.halfline1 + "=" 
-
-    def make_description(self):
-        output = f'''
-{self.halfline1} {self.prog} {self.halfline2}
-{self.description}
-{self.examples}
-
- See full list of options with:
- {self.prog} --help
-
- Version {self.version} 
- Written by Pavel Afanasyev
- afanasyev.code@gmail.com
- https://github.com/afanasyevp/cryoem_tools
-{self.underline}
-
-'''
-        return output
-
+ver=20241109
+OUTPUT_WIDTH = 120 
 
 class Helper_I_O:
     def __init__(self, args):
@@ -177,6 +138,13 @@ class Helper_I_O:
         if not os.path.exists(outdirname):
             os.mkdir(outdirname)
         return Path(outdirname).absolute()
+    
+    @staticmethod
+    def list_to_file(data, out_filename):
+        with open(out_filename, "w") as f:
+            for line in data:
+                f.write(line)
+        print(f" => File {out_filename} is created.")
 
 
     @staticmethod
@@ -198,38 +166,38 @@ class Helper_I_O:
                 raise ValueError("invalid input value %r" % (val,))
 
 
-class Helper_commands:
+class Helper_Run:
     def __init__(self, args, cmds):
         self.args = args
         self.cmds = cmds
 
-    def run_cmds(self):
+    def run_cmds(self, out=None):
+        if out:
+            Helper_I_O.list_to_file(self.cmds, out)
         for cmd in self.cmds:
             p=subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
             for line in p.stdout:
                 print(line.decode("utf-8").strip())    
 
+
+
+
+#For argparse
+class UltimateHelpFormatter(argparse.RawTextHelpFormatter, argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
+    # RawDescriptionHelpFormatter as formatter_class= indicates that description and epilog are already correctly formatted and should not be line-wrapped:
+    # ArgumentDefaultsHelpFormatter automatically adds information about default values to each of the argument help messages
+    # RawTextHelpFormatter maintains whitespace for all sorts of help text, including argument descriptions
+    #pass
+    def __init__(self, prog,*args, **kwargs):
+        kwargs['width'] = OUTPUT_WIDTH  # Set the desired width of "usage"
+        kwargs['max_help_position'] = 40	
+        super().__init__(prog, *args, **kwargs)
+        #super().__init__(prog, max_help_position=40, width=OUTPUT_WIDTH)
+
 class _HelpAction(argparse._HelpAction):
     ''' 
     Prints all options for all subparsers in the help 
     From: https://stackoverflow.com/questions/20094215/argparse-subparser-monolithic-help-output
-    # create the top-level parser
-	parser = argparse.ArgumentParser(prog='PROG', add_help=False)  # here we turn off default help action
-
-	parser.add_argument ('-h', '--help', action=_HelpAction, help='show this help message and exit')  # add custom help
-
-	parser.add_argument('--foo', action='store_true', help='foo help')
-	subparsers = parser.add_subparsers(help='sub-command help')
-
-	# create the parser for the "a" command
-	parser_a = subparsers.add_parser('a', help='a help')
-	parser_a.add_argument('bar', type=int, help='bar help')
-
-	# create the parser for the "b" command
-	parser_b = subparsers.add_parser('b', help='b help')
-	parser_b.add_argument('--baz', choices='XYZ', help='baz help')
-
-	parsed_args = parser.parse_args()
 
 	'''
     def __call__(self, parser, namespace, values, option_string=None):
@@ -246,3 +214,48 @@ class _HelpAction(argparse._HelpAction):
                 print("Subparser '{}'".format(choice))
                 print(subparser.format_help())
         parser.exit()
+
+
+class Helper_Prog_Info:
+    def __init__(self, prog, version=None, description=None, examples=None):
+        """
+        See cryoemt_ctffind.py as an example of use.
+        Note: "examples" must be a list of strings
+        """
+        self.underline_n = OUTPUT_WIDTH # considering formating of textwrap and PIP it is 79
+        self.prog  = prog
+        self.version = version
+        self.description = description 
+        self.underline = "="*self.underline_n
+        self.examples = examples
+        if self.examples:
+            self.examples = "\n".join(fill(line, width=self.underline_n) for line in self.examples)
+        if (self.underline_n -len(self.prog)) % 2 == 0:
+            self.halfline1 = "=" * int((self.underline_n - len(self.prog))/2 - 1)
+            self.halfline2 = self.halfline1
+        else:
+            self.halfline1 = "=" * int((self.underline_n - len(self.prog) - 1)/2 - 1)
+            self.halfline2 =  self.halfline1 + "=" 
+
+    def make_description(self):
+        output = f'''
+{self.halfline1} {self.prog} {self.halfline2}
+{self.description}
+
+{self.examples}
+
+ See full list of options with:
+ {self.prog} --help
+
+
+
+ Version {self.version} 
+ Written by Pavel Afanasyev
+ afanasyev.code@gmail.com
+ https://github.com/afanasyevp/cryoem_tools
+{self.underline}
+
+'''
+        return output
+
+
