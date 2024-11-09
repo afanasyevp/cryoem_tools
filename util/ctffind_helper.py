@@ -181,6 +181,7 @@ class Helper_ctffind5:
         ctffind_results = {}
         ctffind_results_avrot={}
         dataset_results = []
+        dataset_results_avrot = []
        
         # results of all files:
         headers_lines=5 # number of lines in headers of the output file
@@ -233,9 +234,8 @@ class Helper_ctffind5:
             #####################################
             # TODO: to figure out avrot as well #
             #####################################
-            if filename[-9:] != "avrot.txt":
+            if filename[-9:] != "avrot.txtw":
                 ctffind_results[filename] = Micrographs_ctffind(filename, params)
-                #ctffind_results_for_pd = Micrographs_ctffind(filename, params)
                 with open(filename, "r") as f:
                     lines = f.readlines()
                 for count, line in enumerate(lines, start=1):
@@ -290,11 +290,8 @@ class Helper_ctffind5:
                             else:
                                 avrot=True
                                 lines_per_micrograph=match.group(1)
-                                data_headers[line5_option17] = lines_per_micrograph
                                 columns_assignment=self.determine_columns_assignment(line, avrot=True)
-
-                                #print("aaa:", columns_assignment)
-                                
+                              
                             for key, value in columns_assignment.items():
                                 if key == line5_option1:
                                     data_headers[line5_option1] = value
@@ -337,7 +334,6 @@ class Helper_ctffind5:
                             break
                     else:
                         # Check for accumulation of the header info
-                        print("data headers: ", data_headers)
                         if params != {} and data_headers != {}:
                             if avrot==False:
                                 # Collecting the data
@@ -350,38 +346,31 @@ class Helper_ctffind5:
                                 words=line.split()
                                 # Define a dictionary for each micrograph:
                                 temp_data={}
-                                #if avrot:
                                 if len(ctffind_results[filename].data_headers) != len(words):
                                     print(f" => Warning!! The number of data fields in the {filename} is not equal to the determined header information {data_headers_sorted}")
-                                    #print(data_headers_sorted)
-                                    #ctffind_results[filename].print_dict_attribute("data_headers")
-                                    #micrograph_data
                                 else:
                                     zipped_list = list(zip(data_headers_sorted, words))
                                     for item in zipped_list:
                                         temp_data[data_headers_sorted[item[0]]] = item[1]
                                     micrograph_data = temp_data | params
-                                    micrograph_data[line2_option1] = filename
-                                    ctffind_results[filename].data.append(micrograph_data)
+                                    #micrograph_data[line2_option1] = filename
+                                    #ctffind_results[filename].data.append(micrograph_data)
                                     dataset_results.append(micrograph_data)
                             else:
-                                # counter_data_line= 1 + (count - headers_lines) % int(data_headers[line5_option17])
-                                # counter_micrograph_number = math.floor(count - headers_lines / int(data_headers[line5_option17]))
-                                # print(counter_micrograph_number)
-                                # #define input file, micrograph number 
-                                # ctffind_results_avrot[line2_option1] = filename
-                                # # Micrograph number in the
-                                # ctffind_results_avrot[line5_option1] = counter_micrograph_number
-
-
-                                pass
-                                
+                                #counter_data_line= 1 + (count - headers_lines) % int(lines_per_micrograph)
+                                counter_micrograph_number = 1+math.floor((count - headers_lines - 1) / int(lines_per_micrograph))
+                                ctffind_results_avrot[line2_option1] = filename
+                                ctffind_results_avrot[line5_option1] = counter_micrograph_number
+                                for k,v in data_headers.items():
+                                    ctffind_results_avrot[k] = line.split()
+                                dataset_results_avrot.append(ctffind_results_avrot | params )
                         else:
                             print(f"\n => Warning! The header information for the {filename} is missing. Check the input!")
                             break
                         
                 #ctffind_results[filename].print_attributes()
         #print(dataset_results)
+        #print(dataset_results_avrot)
         self.df=pd.DataFrame(dataset_results)
         if csv_output:
             print(f"\n => Data has been read:\n\n", self.df)
