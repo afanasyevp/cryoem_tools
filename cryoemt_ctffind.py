@@ -25,12 +25,12 @@ from util.setup_helper import _HelpAction, UltimateHelpFormatter
 from util.ctffind_helper import Helper_ctffind5
 
 #import string
+#import pandas
+import time
 import argparse
-#import time
-import pandas
 
 PROG = Path(__file__).name
-VER = 20241109
+VER = 20241110
 
 def main(args):
 
@@ -45,8 +45,8 @@ def main(args):
         ctffind = Helper_ctffind5(args, targets)
         ctffind_cmds=ctffind.create_cmds()
         cmds=Helper_Run(args, ctffind_cmds)
+        time.sleep(1)
         cmd_log=str(Path(args.path_out).resolve()) + "/cryoemt_ctffind_cmds.txt"
-        
         #cmds.run_cmds(out=cmd_log)
         cmds.run_cmds()
 
@@ -56,9 +56,9 @@ def main(args):
             suffix_in=args.insuff,
         )
         ctffind = Helper_ctffind5(args, targets)
-        #time.sleep(2)
-        results = ctffind.analyse_ctffind_results(str(Path(args.path_out).resolve()) + "/cryoemt_ctffind_results.csv")
-        #results = ctffind.analyse_ctffind_results()
+        results = ctffind.analyse_ctffind_results(str(Path(args.path_out).resolve()) + "/" + args.csv, property=args.property)
+    
+
 
 
 if __name__ == "__main__":
@@ -69,8 +69,9 @@ if __name__ == "__main__":
 
   Mode 2 ("ana"): Analyse results (phase shifts, etc.)
 
-  Requirement: Python 3.9, pandas
+  Dependencies: pandas
 """
+
     examples = [
         f"\n*** EXAMPLES ***\n",
         f" Estimation of phase shifts:\n",
@@ -80,7 +81,7 @@ if __name__ == "__main__":
         f" {PROG} run --software ctffind --pix 1.08 --path_in ./ --path_out . --insuff _fractions.mrc --outsuff _fractions_ctf.mrc --stacks 0 --exhaus_search 1 --threads 12 --find_phase_shift 0 --find_tilt 0 --thickness 0 --min_res 30 --max_res 3 --min_def 5000 --max_def 50000 --exhaus_search 0 --threads 12 --comscript 1\n\n",
         "",
         f" Analysis of phase shifts:\n",
-        f" {PROG} ana  --property phase_shift  --path_in . --path_out --insuff _ctf.txt",
+        f" {PROG} ana  --property phase_shift  --path_in . --path_out . --insuff .txt",
     ]
     description = Helper_Prog_Info(PROG, VER, description_text, examples).make_description()
 
@@ -115,6 +116,16 @@ if __name__ == "__main__":
         "--path_out",
         default="./",
         help="Default: . | Path to the folder with the output of this script",
+    )
+    add_ana(
+        "--csv",
+        default="cryoemt_ctffind_results.csv",
+        help="Default: cryoemt_ctffind_results.csv | Name of the output csv file",
+    )
+    add_ana(
+        "--csv_name",
+        default=True,
+        help="Default: True | Generate csv file with the output data?",
     )
     #add_ana("--data_type", default="mic", choices=["mic", "mics", "mov", "ts"], help="Default: mic (micrographs) | Data type: micrograph(s), movies, tilt series. (Options: mic, mics, mov, ts)")
     

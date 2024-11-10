@@ -24,13 +24,15 @@ import math
 import pandas as pd
 from util.setup_helper import Helper_I_O
 from pathlib import Path
-ver=20241109
+ver=20241110
 
 class Helper_ctffind5:
     def __init__(self, args, targets):
         self.args = args
         self.targets = targets
-        self.df=None # a dictionary of all micrographs or TSs with all values
+        self.ctffind_data = None
+        self.ctffind_data_avrot = None
+        self.ctffind_data_full = None
         if self.args.mode == "run":
             self.cmds = []
 		    #Deal with boolean inputs separately
@@ -51,10 +53,6 @@ class Helper_ctffind5:
             self.weight_lowres = Helper_I_O.strtobool(args.weight_lowres) 
             self.comscript = Helper_I_O.strtobool(args.comscript)
        
-
-    @staticmethod
-    def convert_to_str(val):
-        return "Yes" if val else "No"
 
     def create_ctffind_cmd(self, target):
         '''
@@ -174,12 +172,10 @@ class Helper_ctffind5:
             cmd = self.create_ctffind_cmd(target)
         return self.cmds
     
-    def analyse_ctffind_results(self, csv_output=None):
+    def analyse_ctffind_results(self, csv_output, property):
         # define a dictionary of micrograph(s), corresponding to a single .mrc file, on which ctffind was running
         # Below are the assumptions on the results file. If the program output changes, consider re-implementing using regex
          
-        ctffind_results = {}
-        ctffind_results_avrot={}
         dataset_results = []
         dataset_results_avrot = []
        
@@ -226,202 +222,207 @@ class Helper_ctffind5:
         line5_option16="2sigma of expected cross correlation of noise"
         line5_option17="lines per micrograph"
         
-
         for target in self.targets:
             params={}
             data_headers={}
             filename=target[0]
-            #####################################
-            # TODO: to figure out avrot as well #
-            #####################################
-            if filename[-9:] != "avrot.txtw":
-                ctffind_results[filename] = Micrographs_ctffind(filename, params)
-                with open(filename, "r") as f:
-                    lines = f.readlines()
-                for count, line in enumerate(lines, start=1):
-                    line=line.strip()
-                    if line.startswith("#"):
-                        words=line.split()
-                        if count == 1:
-                            if words[1].translate(str.maketrans('', '', string.punctuation)) ==  line1_word1:
-                                params[line1_option1] = words[5]
-                                params[line1_option2] = words[8] + " " + words[9]
-                            else:
-                                print( f"=> Warning! Line {count} in the {filename} does not contain word \'{line1_word1}\'")
-                                break
-                        elif count == 2:
-                            if words[1].translate(str.maketrans('', '', string.punctuation))  ==  line2_word1:
-                                params[line2_option1] = words[3]
-                                params[line2_option2] = int(words[8])
-                                if params[line2_option2] > 1:
-                                    print(f" => Number of micrographs in {params[line2_option1]} is {params[line2_option2]}. This is a stack of micrographs or tilt series.")
-                                    ctffind_results[filename].micrograph_number = int(words[8])
-                            else:
-                                print( f"=> Warning! Line {count} in the {filename} does not contain word \'{line2_word1}\'")
-                                break
-                        elif count == 3:
-                            if words[1].translate(str.maketrans('', '', string.punctuation))  ==  line3_word1:
-                                params[line3_option1] = float(words[3])
-                                params[line3_option2] = float(words[8])
-                                params[line3_option3] = float(words[13])
-                                params[line3_option4] = float(words[18])                          
-                            else:
-                                print( f"=> Warning! Line {count} in the {filename} does not contain word \'{line3_word1}\'")
-                                break
-                        elif count == 4:
-                            if words[1].translate(str.maketrans('', '', string.punctuation))  ==  line4_word1:
-                                params[line4_option1] = int(words[3])                          
-                                params[line4_option2] = float(words[8])                          
-                                params[line4_option3] = float(words[13])                          
-                                params[line4_option4] = float(words[18])                          
-                                params[line4_option5] = float(words[22])                              
-                            else:
-                                print( f"=> Warning! Line {count} in the {filename} does not contain word \'{line4_word1}\'")
-                                break
-                        elif count == 5:
-                            match = re.search(r"#\s*(\d+)\s+lines per micrograph", line)
-                            if not match:
-                                avrot = False
-                                if words[1].translate(str.maketrans('', '', string.punctuation))  ==  line5_word1:
-                                    #Assume it is the last header line in the .txt file
-                                    columns_assignment=self.determine_columns_assignment(line)
-                                else:
-                                    print(f"Warning!! : this line #{count} in the {filename} is problematic: \n{line}\n ") 
-                            else:
-                                avrot=True
-                                lines_per_micrograph=match.group(1)
-                                columns_assignment=self.determine_columns_assignment(line, avrot=True)
-                              
-                            for key, value in columns_assignment.items():
-                                if key == line5_option1:
-                                    data_headers[line5_option1] = value
-                                elif key == line5_option2:
-                                    data_headers[line5_option2] = value
-                                elif key == line5_option3:
-                                    data_headers[line5_option3] = value  
-                                elif key == line5_option4:
-                                    data_headers[line5_option4] = value 
-                                elif key == line5_option5:
-                                    data_headers[line5_option5] = value 
-                                elif key == line5_option6:
-                                    data_headers[line5_option6] = value 
-                                elif key == line5_option7:
-                                    data_headers[line5_option7] = value 
-                                elif key == line5_option8:
-                                    data_headers[line5_option8] = value 
-                                elif key == line5_option9:
-                                    data_headers[line5_option9] = value 
-                                elif key == line5_option10:
-                                    data_headers[line5_option10] = value
-                                # These are in the _avrot.txt files
-                                elif key == line5_option11:
-                                    data_headers[line5_option11] = value
-                                elif key == line5_option12:
-                                    data_headers[line5_option12] = value
-                                elif key == line5_option13:
-                                    data_headers[line5_option13] = value
-                                elif key == line5_option14:
-                                    data_headers[line5_option14] = value
-                                elif key == line5_option15:
-                                    data_headers[line5_option15] = value
-                                elif key == line5_option16:
-                                    data_headers[line5_option16] = value
-                                else:
-                                    print(f"Warning from ctffind_helper.py (analyse_ctffind_result)! Unknown header value ({key}) in {target} file. Please report to afanasyevp.code@gmail.com")
+            with open(filename, "r") as f:
+                lines = f.readlines()
+            for count, line in enumerate(lines, start=1):
+                line=line.strip()
+                words=line.split()
+                if line.startswith("#"):
+                    if count == 1:
+                        if words[1].translate(str.maketrans('', '', string.punctuation)) ==  line1_word1:
+                            params[line1_option1] = words[5]
+                            params[line1_option2] = words[8] + " " + words[9]
+                        else:
+                            print( f"=> Warning! Line {count} in the {filename} does not contain word \'{line1_word1}\'")
+                            break
+                    elif count == 2:
+                        if words[1].translate(str.maketrans('', '', string.punctuation))  ==  line2_word1:
+                            params[line2_option1] = words[3]
+                            params[line2_option2] = int(words[8])
+                            if params[line2_option2] > 1:
+                                print(f" => Number of micrographs in {params[line2_option1]} is {params[line2_option2]}. This is a stack of micrographs or tilt series.")
+                        else:
+                            print( f"=> Warning! Line {count} in the {filename} does not contain word \'{line2_word1}\'")
+                            break
+                    elif count == 3:
+                        if words[1].translate(str.maketrans('', '', string.punctuation))  ==  line3_word1:
+                            params[line3_option1] = float(words[3])
+                            params[line3_option2] = float(words[8])
+                            params[line3_option3] = float(words[13])
+                            params[line3_option4] = float(words[18])                          
+                        else:
+                            print( f"=> Warning! Line {count} in the {filename} does not contain word \'{line3_word1}\'")
+                            break
+                    elif count == 4:
+                        if words[1].translate(str.maketrans('', '', string.punctuation))  ==  line4_word1:
+                            params[line4_option1] = int(words[3])                          
+                            params[line4_option2] = float(words[8])                          
+                            params[line4_option3] = float(words[13])                          
+                            params[line4_option4] = float(words[18])                          
+                            params[line4_option5] = float(words[22])                              
+                        else:
+                            print( f"=> Warning! Line {count} in the {filename} does not contain word \'{line4_word1}\'")
+                            break
+                    elif count == 5:
+                        match = re.search(r"#\s*(\d+)\s+lines per micrograph", line)
+                        if not match:
+                            avrot = False
+                            if words[1].translate(str.maketrans('', '', string.punctuation))  !=  line5_word1:
+                                #Assume it is the last header line in the .txt file
+                                print(f"Warning!! : this line #{count} in the {filename} is problematic: \n{line}\n ") 
+                        else:
+                            avrot=True
+                            lines_per_micrograph=match.group(1)
+                        columns_assignment=self.determine_columns_assignment(line)
                             
-                        else:
-                            print(f" +> Warning Line {count} in the {filename} contains \'#\' symbol, which is suspicious. This line will be ignored.")
-                            break
-                    else:
-                        # Check for accumulation of the header info
-                        if params != {} and data_headers != {}:
-                            if avrot==False:
-                                # Collecting the data
-                                ctffind_results[filename].params=params
-                                # Swap keys and values. It is a lazy way - otherwise one could sort by values like: sorted(data_headers.items(), key=lambda x: x[1])) or swap it above during assignment
-                                data_headers_swapped = {value: key for key, value in data_headers.items()}
-                                # Assign to a dictionary sorted by values:
-                                data_headers_sorted=dict(sorted(data_headers_swapped.items()))
-                                ctffind_results[filename].data_headers=data_headers_sorted
-                                words=line.split()
-                                # Define a dictionary for each micrograph:
-                                temp_data={}
-                                if len(ctffind_results[filename].data_headers) != len(words):
-                                    print(f" => Warning!! The number of data fields in the {filename} is not equal to the determined header information {data_headers_sorted}")
-                                else:
-                                    zipped_list = list(zip(data_headers_sorted, words))
-                                    for item in zipped_list:
-                                        temp_data[data_headers_sorted[item[0]]] = item[1]
-                                    micrograph_data = temp_data | params
-                                    #micrograph_data[line2_option1] = filename
-                                    #ctffind_results[filename].data.append(micrograph_data)
-                                    dataset_results.append(micrograph_data)
+                        for key, value in columns_assignment.items():
+                            if key == line5_option1:
+                                data_headers[line5_option1] = value
+                            elif key == line5_option2:
+                                data_headers[line5_option2] = value
+                            elif key == line5_option3:
+                                data_headers[line5_option3] = value  
+                            elif key == line5_option4:
+                                data_headers[line5_option4] = value 
+                            elif key == line5_option5:
+                                data_headers[line5_option5] = value 
+                            elif key == line5_option6:
+                                data_headers[line5_option6] = value 
+                            elif key == line5_option7:
+                                data_headers[line5_option7] = value 
+                            elif key == line5_option8:
+                                data_headers[line5_option8] = value 
+                            elif key == line5_option9:
+                                data_headers[line5_option9] = value 
+                            elif key == line5_option10:
+                                data_headers[line5_option10] = value
+                            # These are in the _avrot.txt files
+                            elif key == line5_option11:
+                                data_headers[line5_option11] = value
+                            elif key == line5_option12:
+                                data_headers[line5_option12] = value
+                            elif key == line5_option13:
+                                data_headers[line5_option13] = value
+                            elif key == line5_option14:
+                                data_headers[line5_option14] = value
+                            elif key == line5_option15:
+                                data_headers[line5_option15] = value
+                            elif key == line5_option16:
+                                data_headers[line5_option16] = value
                             else:
-                                #counter_data_line= 1 + (count - headers_lines) % int(lines_per_micrograph)
-                                counter_micrograph_number = 1+math.floor((count - headers_lines - 1) / int(lines_per_micrograph))
-                                ctffind_results_avrot[line2_option1] = filename
-                                ctffind_results_avrot[line5_option1] = counter_micrograph_number
-                                for k,v in data_headers.items():
-                                    ctffind_results_avrot[k] = line.split()
-                                dataset_results_avrot.append(ctffind_results_avrot | params )
+                                print(f"Warning from ctffind_helper.py (analyse_ctffind_result)! Unknown header value ({key}) in {target} file. Please report to afanasyevp.code@gmail.com")
+                    else:
+                        print(f" +> Warning Line {count} in the {filename} contains \'#\' symbol, which is suspicious. This line will be ignored.")
+                        break
+                else:
+                    # Check for accumulation of the header info
+                    if params != {} and data_headers != {}:
+                        if avrot==False:
+                            # Collecting the data
+                            # Swap keys and values. It is a lazy way - otherwise one could sort by values like: sorted(data_headers.items(), key=lambda x: x[1])) or swap it above during assignment
+                            data_headers_swapped = {value: key for key, value in data_headers.items()}
+                            # Assign to a dictionary sorted by values:
+                            data_headers_sorted=dict(sorted(data_headers_swapped.items()))
+                            # Define a dictionary for each micrograph:
+                            ctffind_results={}
+                            if len(data_headers) != len(words):
+                                print(f" => Warning!! The number of data fields in the {filename} is not equal to the determined header information {data_headers_sorted}")
+                            else:
+                                zipped_list = list(zip(data_headers_sorted, words))
+                                for item in zipped_list:
+                                    ctffind_results[data_headers_sorted[item[0]]] = item[1]
+                                ctffind_results.update(params)
+                                dataset_results.append(ctffind_results)
                         else:
-                            print(f"\n => Warning! The header information for the {filename} is missing. Check the input!")
-                            break
-                        
-                #ctffind_results[filename].print_attributes()
-        #print(dataset_results)
-        #print(dataset_results_avrot)
-        self.df=pd.DataFrame(dataset_results)
-        if csv_output:
-            print(f"\n => Data has been read:\n\n", self.df)
-            print(f"\n => Data has been written to csv file {csv_output}:\n\n")
-            self.df.to_csv(csv_output, index=False)
-        else:
-            print(f"\n => Data has been read. No output will be saved", self.df)
+                            counter_data_line= 1+(count - headers_lines-1) % int(lines_per_micrograph)
+                            counter_micrograph_number = 1+math.floor((count - headers_lines - 1) / int(lines_per_micrograph))
+                            ctffind_results_avrot={}
+                            ctffind_results_avrot[line2_option1] = filename
+                            ctffind_results_avrot[line5_option1] = counter_micrograph_number
+                            for k,v in data_headers.items():
+                                ctffind_results_avrot[k] = words
+                            ctffind_results_avrot.update(params)
+                            dataset_results_avrot.append(ctffind_results_avrot)
+                    else:
+                        print(f"\n => Warning! The header information for the {filename} is missing. Check the input!")
+                        break
+
+        # convert radians to angles for phase shift 
+        if dataset_results == {}:
+            print(f"No ctffind output data found in {self.args.path_in} ")
+        for i in dataset_results:
+            if i[line5_option5]:
+                angle=round(math.degrees(float(i[line5_option5])),1)
+                if angle>90: angle = 180 - angle
+                i["additional phase shift [ang]"]=angle
         
-        return self.df
+        #convert str to integer for micrograph number
+        for i in dataset_results:
+            i[line5_option1] = int(float(i[line5_option1]))
+
+        # Create pandas dataframes
+        self.ctffind_data=pd.DataFrame(dataset_results)
+        self.ctffind_data_avrot=pd.DataFrame(dataset_results_avrot)
+        # combine two datasets based on keys "Input file" and "micrograph number "
+        combined = self.combine_data(dataset_results_avrot, dataset_results, [line5_option1, line2_option1])
+        self.ctffind_data_full=pd.DataFrame(combined)
+
+        print(f"\n => Data is read...\n")
+        if csv_output:
+            csv_output_avrot=csv_output[:-4]+"_avrot.csv"
+            self.ctffind_data_avrot.to_csv(csv_output_avrot, index=False)
+            self.ctffind_data.to_csv(csv_output, index=False)
+            print(f" => Data is written to csv files {csv_output_avrot} (full output) and {csv_output} (compact output)\n\n")
+            #print(self.ctffind_data_full)   
+        else:
+            print(f"\n => No output will be saved", self.ctffind_data)
+        print(self.ctffind_data)
+        return self.ctffind_data_full
      
     @staticmethod
-    def determine_columns_assignment(line, avrot=False):
+    def determine_columns_assignment(line):
         """Takes a line like:
 
         {'micrograph number': 1, 'defocus 1 [Angstroms]': 2, 'defocus 2': 3, 'azimuth of astigmatism': 4, 'additional phase shift [radians]': 5, 'cross correlation': 6, 'spacing (in Angstroms) up to which CTF rings were fit successfully': 7, 'Estimated tilt axis angle': 8, 'Estimated tilt angle': 9}
         """
         pattern=r"#(\d+)\s*-?\s*([^;]+)"
-        if avrot==False:
-            matches = re.findall(pattern, line)
-        else:
-            #pattern = re.search(r"#\s*(\d+)\s+lines per micrograph", line)
-            matches = re.findall(pattern, line)
+        matches = re.findall(pattern, line)
         column_dict = {description.strip(): int(number)  for number, description in matches}
 
         return column_dict
     
+    @staticmethod
+    def convert_to_str(val):
+        return "Yes" if val else "No"
 
-class Micrographs_ctffind:
-    def __init__(self, filename, params=None, data_headers=None):
-        self.filename = filename
-        self.params = params
-        self.data_headers = data_headers
-        self.micrograph_number = 1
-        self.data=[]
-
-    def print_dict_attribute(self, attribute_name):
-        # Check if the attribute exists in the instance and is a dictionary
-        if hasattr(self, attribute_name):
-            attr = getattr(self, attribute_name)
-            if isinstance(attr, dict):
-                print(f"Printing dictionary for attribute '{attribute_name}':")
-                for key, value in attr.items():
-                    print(f"{key}: {value}")
+    @staticmethod
+    def combine_data(list1, list2, matching_keys):
+        """
+        Combines two lists of dictionaries based on keys
+        """
+        merged_list=[]
+        for dict1 in list1:
+            # Find matching dictionaries in list2 based on all matching keys
+            match = next(
+                (dict2 for dict2 in list2 if all(dict1.get(key) == dict2.get(key) for key in matching_keys)),
+                None
+            )
+            if match:
+                # Merge dictionaries when a match is found
+                merged_dict = {**dict1, **match}
+                merged_list.append(merged_dict)
             else:
-                print(f"Error: The attribute '{attribute_name}' is not a dictionary.")
-        else:
-            print(f"Error: The attribute '{attribute_name}' does not exist.")
+                # Add dictionary as is if no match is found
+                merged_list.append(dict1)
 
-    def print_attributes(self):
-        for attr, value in self.__dict__.items():
-            if value is not None and value != []:
-                print(f"{attr}: {value}")
+        # Append any dictionaries from list2 without matches in list1
+        for dict2 in list2:
+            if not any(all(dict1.get(key) == dict2.get(key) for key in matching_keys) for dict1 in list1):
+                merged_list.append(dict2)
 
+        return merged_list
 
