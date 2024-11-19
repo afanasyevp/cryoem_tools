@@ -28,7 +28,7 @@ from scipy.optimize import root_scalar
 import numpy as np
 
 PROG = Path(__file__).name
-VER = 20240315
+VER = 20241119
 TOPHALFLINE = "=" * 35  # line for the output
 UNDERLINE = ("=" * 70) + ("=" * (len(PROG) + 2))  # line for the output
 CISTEM_FSCFILE_NUM_OF_COLUMNS = 7
@@ -45,6 +45,7 @@ CURVE_LINEWIDTH = 1
 
 GRID_LINEWIDTH = 0.25
 PLOT_TITLE = ""
+OUTPUT_FIG_TITLE="fsc_plot.png"
 GRID_LINESTYLE = "-"
 FONTWEIGHT = "bold"
 Y_LABEL = "Fourier Shell Correlation"
@@ -506,7 +507,7 @@ def make_fsc_plots(curves, args, threesigma_fsc=None, halfbit_fsc=None):
                 curve["frac_of_nq"],
                 curve["fsc"],
                 linewidth=CURVE_LINEWIDTH,
-                color=color,
+                #color=color,
             )
 
     if args.no_threshold == False:
@@ -530,6 +531,7 @@ def make_fsc_plots(curves, args, threesigma_fsc=None, halfbit_fsc=None):
     ax.xaxis.set_major_locator(x_locator)
     ax.yaxis.set_major_locator(y_locator)
     plt.axhline(0, color="black", linewidth=0.5)
+    plt.savefig(OUTPUT_FIG_TITLE, dpi=300)
     plt.show()
 
 
