@@ -128,7 +128,7 @@ def email_text(message_type, start, when_sent, folder, time_int, mov_number, vol
         message += f'POTENTIAL ERROR IN THE DATA COLLECTION occured on {when_sent}. \n\nNo changes in the volume size has been registered in the last {time_int} minutes. \n You will be notified by another email about the data colection progress only if the data collection continues. The script will be terminated in {running_left} hours. \n'
         subject = 'ERROR in data collection [do not reply please]'
     elif message_type == "OK":
-        message += f'PROGRESS in the data collection on {when_sent}. \n\nIf there are no new files appearing in the directory within {time_int} minutes, you will be notified by another email. The script will be terminated in {running_left} hours. \n'
+        message += f'PROGRESS in the data collection on {when_sent}. \n\nIf there are no new files appearing in the directory within {time_int} seconds, you will be notified by another email. The script will be terminated in {running_left} hours. \n'
         subject = "OK data collection [do not reply please]"
     elif message_type == "Stop":
         message += f'POTENTIAL ERROR IN THE DATA COLLECTION occured on {when_sent}. \n\nNo changes in the volume size has been registered in the last {time_int} minutes. The data_collection_alarm.py script will be terminated now. To continue monitoring the process after data collection errors please use --okreport option in data_collection_alarm.py script.  \n'
@@ -139,7 +139,7 @@ def email_text(message_type, start, when_sent, folder, time_int, mov_number, vol
     else:
         sys.exit(" => Unknown message_type!")
     message += f'\nFolder: {folder} \nTotal size of the folder: {float(volume/1000000000000):4f} TB \n Total number of the appearing files: {mov_number}'
-    message += f'\n\n#\n#This message is sent from Python script\n#https://github.com/afanasyevp/cryoem_tools/data_collection_alarm.py\n#version: {VER}'
+    message += f'\n\n#\n#This message is sent from Python script\n#https://github.com/afanasyevp/cryoem_tools/blob/master/data_collection_alarm.py\n#version: {VER}'
     return message, subject
 
 def progress_message(when_displayed, file_number, volume, time_int, message_type):
